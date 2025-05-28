@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+.picture-frame {
+  border: 1px solid #ccc;
+  width: 2in;
+  height: 2in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.picture-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.picture-frame.drag-over {
+  border-color: #4299e1;
+  background-color: rgba(66, 153, 225, 0.1);
+} 
