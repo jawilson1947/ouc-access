@@ -1,7 +1,6 @@
 'use client';
 
-import { useSession, signIn } from 'next-auth/react';
-import Image from 'next/image';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import AccessRequestForm from '@/components/AccessRequestForm';
@@ -11,47 +10,42 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (session?.user?.email) {
-      // Store the Gmail in localStorage for later use
-      localStorage.setItem('gmail', session.user.email);
+    console.log('Home page - Session status:', status);
+    console.log('Home page - Session data:', session);
+
+    if (status === 'unauthenticated') {
+      console.log('Redirecting to login - no session found');
+      router.replace('/login');
     }
-  }, [session]);
+  }, [status, session, router]);
 
   if (status === 'loading') {
-    return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+    console.log('Home page - Loading session...');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
   }
 
+  if (!session) {
+    console.log('Home page - No session, waiting for redirect...');
+    return null; // Don't render anything while redirecting
+  }
+
+  console.log('Home page - Rendering with session:', session);
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        {!session ? (
-          <div className="flex flex-col items-center justify-center min-h-[80vh]">
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold mb-4">Welcome to the App</h1>
-              <p className="text-xl text-gray-600 mb-8">
-                Sign in to access your account and get started with our features and servic.
-              </p>
-              <button
-                onClick={() => signIn('google')}
-                className="flex items-center justify-center px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <Image
-                  src="/google-icon.png"
-                  alt="Google"
-                  width={20}
-                  height={20}
-                  className="mr-2"
-                />
-                Sign in with Google
-              </button>
-            </div>
-            <div className="w-full max-w-md">
-              <AccessRequestForm />
-            </div>
+    <main className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Welcome, {session.user?.name}
+          </h1>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-500">{session.user?.email}</span>
           </div>
-        ) : (
-          <AccessRequestForm />
-        )}
+        </div>
+        <AccessRequestForm />
       </div>
     </main>
   );

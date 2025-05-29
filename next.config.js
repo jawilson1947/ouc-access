@@ -2,14 +2,15 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['lh3.googleusercontent.com'],
-  },
-  env: {
-    MYSQL_HOST: '192.168.72.250',
-    MYSQL_DATABASE: 'oucsda',
-    MYSQL_USER: 'ouc-it',
-    MYSQL_PASSWORD: 'Y&U*i9o0p',
-  }
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+       },
+      ],
+     },
 }
 
 module.exports = nextConfig 

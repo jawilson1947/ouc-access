@@ -1,24 +1,24 @@
-import './globals.css';
-import { Inter } from 'next/font/google';
-import { SessionProvider } from 'next-auth/react';
+import './globals.css'
+import { Inter } from 'next/font/google'
+import { Providers } from '@/components/Providers'
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'OUC Access Control',
   description: 'Manage digital access requests for OUC members',
-};
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SessionProvider>{children}</SessionProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
-  );
-} 
+  )
+}

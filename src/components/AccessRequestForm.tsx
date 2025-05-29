@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
+import { PhotoFrame } from '@/components/PhotoFrame';
 
 interface FormData {
   empId: number;
@@ -16,16 +17,18 @@ interface FormData {
   deviceId: string;
   userId: string;
   gmail: string;
+  pictureUrl?: string;
+  id?: number;
 }
 
 export default function AccessRequestForm() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [formData, setFormData] = useState<FormData>({
     empId: 0,
     lastname: '',
     firstname: '',
     phone: '',
-    email: '',
+    email: session?.user?.email || '',
     picture: null,
     emailValidationDate: null,
     requestDate: new Date().toISOString(),
@@ -39,8 +42,25 @@ export default function AccessRequestForm() {
   const pictureFrameRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (session?.user?.email === 'jawilson1947@gmail.com') {
+    console.log('Auth Status:', status);
+    console.log('Session:', session);
+    const adminEmail = 'jawilson1947@gmail.com';
+    const userEmail = session?.user?.email?.toLowerCase().trim();
+    
+    if (userEmail === adminEmail.toLowerCase()) {
       setIsSearchEnabled(true);
+    } else {
+      setIsSearchEnabled(false);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      setFormData(prev => ({
+        ...prev,
+        email: session.user.email || '',
+        gmail: session.user.email || ''
+      }));
     }
   }, [session]);
 
@@ -82,11 +102,116 @@ export default function AccessRequestForm() {
   };
 
   const handleSearch = async () => {
-    // Implement search logic based on the requirements
+    try {
+      const searchEmail = formData.email;
+      const searchUserId = formData.userId;
+      
+      const params = new URLSearchParams();
+      if (searchEmail) params.append('email', searchEmail);
+      if (searchUserId) params.append('userId', searchUserId);
+      
+      const response = await fetch(`/api/access-requests?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+      
+      const { data } = await response.json();
+      if (data && data.length > 0) {
+        const record = data[0];
+        setFormData({
+          empId: record.emp_id,
+          lastname: record.lastname,
+          firstname: record.firstname,
+          phone: record.phone,
+          email: record.email,
+          picture: null,
+          pictureUrl: record.picture_url,
+          emailValidationDate: record.email_validation_date,
+          requestDate: record.request_date,
+          deviceId: record.device_id,
+          userId: record.user_id,
+          gmail: record.gmail
+        });
+        
+        if (record.picture_url) {
+          setCurrentImage(record.picture_url);
+        }
+      } else {
+        alert('No records found');
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      alert('Failed to search records');
+    }
   };
 
   const handleSave = async () => {
-    // Implement save logic
+    try {
+      // Upload picture if exists
+      let pictureUrl = null;
+      if (formData.picture) {
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', formData.picture);
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData
+        });
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload picture');
+        }
+        const { url } = await uploadResponse.json();
+        pictureUrl = url;
+      }
+
+      const requestData = {
+        ...formData,
+        pictureUrl
+      };
+
+      const response = await fetch('/api/access-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Save failed');
+      }
+
+      alert('Record saved successfully');
+      handleNew(); // Reset form after successful save
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('Failed to save record');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!formData.id || !session?.user?.isAdmin) {
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this record?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/access-requests?id=${formData.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Delete failed');
+      }
+
+      alert('Record deleted successfully');
+      handleNew(); // Reset form after successful delete
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete record');
+    }
   };
 
   const handleNew = () => {
@@ -95,7 +220,7 @@ export default function AccessRequestForm() {
       lastname: '',
       firstname: '',
       phone: '',
-      email: '',
+      email: session?.user?.email || '',
       picture: null,
       emailValidationDate: null,
       requestDate: new Date().toISOString(),
@@ -166,14 +291,46 @@ export default function AccessRequestForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Email:</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
+            <div className="relative">
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+                readOnly={!session?.user?.isAdmin}
+                className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${
+                  !session?.user?.isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+              />
+              {session?.user?.email && !session?.user?.isAdmin && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <svg 
+                    className="h-5 w-5 text-green-500" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
+                    />
+                  </svg>
+                </div>
+              )}
+            </div>
+            {session?.user?.email && !session?.user?.isAdmin && (
+              <p className="mt-1 text-sm text-gray-500">
+                Email is set from your Google account
+              </p>
+            )}
+            {session?.user?.isAdmin && (
+              <p className="mt-1 text-sm text-blue-500">
+                Admin mode: Email field is editable
+              </p>
+            )}
           </div>
 
           <div>
@@ -236,12 +393,22 @@ export default function AccessRequestForm() {
         <button
           onClick={handleSearch}
           disabled={!isSearchEnabled}
+          title={!isSearchEnabled ? "Only available for admin users" : "Search records"}
           className={`px-4 py-2 text-white rounded ${
             isSearchEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'
           }`}
         >
-          Search
+          {isSearchEnabled ? 'Search' : 'Admin Only'}
         </button>
+        {session?.user?.isAdmin && formData.id && (
+          <button
+            onClick={handleDelete}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            title="Delete this record"
+          >
+            Delete
+          </button>
+        )}
         <button
           disabled={true}
           className="px-4 py-2 bg-gray-400 text-white rounded cursor-not-allowed"
