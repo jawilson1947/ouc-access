@@ -6,34 +6,47 @@ import { useSession } from 'next-auth/react';
 import { PhotoFrame } from '@/components/PhotoFrame';
 
 interface FormData {
-  empId: number;
+  EmpID: number;
   lastname: string;
   firstname: string;
   phone: string;
   email: string;
   picture: File | null;
-  emailValidationDate: string | null;
-  requestDate: string;
-  deviceId: string;
-  userId: string;
+  EmailValidationDate: string | null;
+  RequestDate: string;
+  DeviceID: string;
+  userid: string;
   gmail: string;
-  pictureUrl?: string;
-  id?: number;
+  Picture_Url?: string;
+}
+
+interface RequestData {
+  lastname: string;
+  firstname: string;
+  phone: string;
+  email: string;
+  Picture_Url?: string | null;
+  EmailValidationDate: string | null;
+  RequestDate: string;
+  DeviceID: string;
+  userid: string;
+  gmail: string;
+  EmpID?: number;
 }
 
 export default function AccessRequestForm() {
   const { data: session, status } = useSession();
   const [formData, setFormData] = useState<FormData>({
-    empId: 0,
+    EmpID: 0,
     lastname: '',
     firstname: '',
     phone: '',
     email: session?.user?.email || '',
     picture: null,
-    emailValidationDate: null,
-    requestDate: new Date().toISOString(),
-    deviceId: '',
-    userId: '',
+    EmailValidationDate: null,
+    RequestDate: new Date().toISOString(),
+    DeviceID: '',
+    userid: '',
     gmail: session?.user?.email || ''
   });
 
@@ -104,13 +117,13 @@ export default function AccessRequestForm() {
   const handleSearch = async () => {
     try {
       const searchEmail = formData.email;
-      const searchUserId = formData.userId;
+      const searchUserId = formData.userid;
       
       const params = new URLSearchParams();
       if (searchEmail) params.append('email', searchEmail);
       if (searchUserId) params.append('userId', searchUserId);
       
-      const response = await fetch(`/api/access-requests?${params.toString()}`);
+      const response = await fetch(`/api/church-members?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Search failed');
       }
@@ -119,22 +132,22 @@ export default function AccessRequestForm() {
       if (data && data.length > 0) {
         const record = data[0];
         setFormData({
-          empId: record.emp_id,
+          EmpID: record.EmpID,
           lastname: record.lastname,
           firstname: record.firstname,
           phone: record.phone,
           email: record.email,
           picture: null,
-          pictureUrl: record.picture_url,
-          emailValidationDate: record.email_validation_date,
-          requestDate: record.request_date,
-          deviceId: record.device_id,
-          userId: record.user_id,
+          Picture_Url: record.Picture_Url,
+          EmailValidationDate: record.EmailValidationDate,
+          RequestDate: record.RequestDate,
+          DeviceID: record.DeviceID,
+          userid: record.userid,
           gmail: record.gmail
         });
         
-        if (record.picture_url) {
-          setCurrentImage(record.picture_url);
+        if (record.Picture_Url) {
+          setCurrentImage(record.Picture_Url);
         }
       } else {
         alert('No records found');
@@ -148,7 +161,7 @@ export default function AccessRequestForm() {
   const handleSave = async () => {
     try {
       // Upload picture if exists
-      let pictureUrl = null;
+      let Picture_Url = formData.Picture_Url;
       if (formData.picture) {
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.picture);
@@ -160,16 +173,30 @@ export default function AccessRequestForm() {
           throw new Error('Failed to upload picture');
         }
         const { url } = await uploadResponse.json();
-        pictureUrl = url;
+        Picture_Url = url;
       }
 
-      const requestData = {
-        ...formData,
-        pictureUrl
+      const requestData: RequestData = {
+        lastname: formData.lastname,
+        firstname: formData.firstname,
+        phone: formData.phone,
+        email: formData.email,
+        Picture_Url,
+        EmailValidationDate: formData.EmailValidationDate,
+        RequestDate: formData.RequestDate,
+        DeviceID: formData.DeviceID,
+        userid: formData.userid,
+        gmail: formData.gmail
       };
 
-      const response = await fetch('/api/access-requests', {
-        method: 'POST',
+      // Only include EmpID for updates
+      if (formData.EmpID !== 0) {
+        requestData.EmpID = formData.EmpID;
+      }
+
+      const method = formData.EmpID === 0 ? 'POST' : 'PUT';
+      const response = await fetch('/api/church-members', {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -180,8 +207,15 @@ export default function AccessRequestForm() {
         throw new Error('Save failed');
       }
 
+      const result = await response.json();
+      if (method === 'POST' && result.EmpID) {
+        setFormData(prev => ({
+          ...prev,
+          EmpID: result.EmpID
+        }));
+      }
+
       alert('Record saved successfully');
-      handleNew(); // Reset form after successful save
     } catch (error) {
       console.error('Save error:', error);
       alert('Failed to save record');
@@ -189,7 +223,7 @@ export default function AccessRequestForm() {
   };
 
   const handleDelete = async () => {
-    if (!formData.id || !session?.user?.isAdmin) {
+    if (!formData.EmpID || !session?.user?.isAdmin) {
       return;
     }
 
@@ -198,7 +232,7 @@ export default function AccessRequestForm() {
     }
 
     try {
-      const response = await fetch(`/api/access-requests?id=${formData.id}`, {
+      const response = await fetch(`/api/church-members?EmpID=${formData.EmpID}`, {
         method: 'DELETE',
       });
 
@@ -216,16 +250,16 @@ export default function AccessRequestForm() {
 
   const handleNew = () => {
     setFormData({
-      empId: 0,
+      EmpID: 0,
       lastname: '',
       firstname: '',
       phone: '',
       email: session?.user?.email || '',
       picture: null,
-      emailValidationDate: null,
-      requestDate: new Date().toISOString(),
-      deviceId: '',
-      userId: '',
+      EmailValidationDate: null,
+      RequestDate: new Date().toISOString(),
+      DeviceID: '',
+      userid: '',
       gmail: session?.user?.email || ''
     });
     setCurrentImage('/PhotoID.jpeg');
@@ -337,8 +371,8 @@ export default function AccessRequestForm() {
             <label className="block text-sm font-medium text-gray-700">User ID:</label>
             <input
               type="text"
-              name="userId"
-              value={formData.userId}
+              name="userid"
+              value={formData.userid}
               onChange={handleInputChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
@@ -348,8 +382,8 @@ export default function AccessRequestForm() {
             <label className="block text-sm font-medium text-gray-700">Device ID:</label>
             <input
               type="text"
-              name="deviceId"
-              value={formData.deviceId}
+              name="DeviceID"
+              value={formData.DeviceID}
               onChange={handleInputChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
@@ -359,7 +393,7 @@ export default function AccessRequestForm() {
             <label className="block text-sm font-medium text-gray-700">Email Validated on:</label>
             <input
               type="text"
-              value={formData.emailValidationDate || 'Not validated'}
+              value={formData.EmailValidationDate || 'Not validated'}
               disabled
               className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm"
             />
@@ -369,7 +403,7 @@ export default function AccessRequestForm() {
             <label className="block text-sm font-medium text-gray-700">Date of Request:</label>
             <input
               type="text"
-              value={new Date(formData.requestDate).toLocaleDateString()}
+              value={new Date(formData.RequestDate).toLocaleDateString()}
               disabled
               className="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 shadow-sm"
             />
@@ -400,7 +434,7 @@ export default function AccessRequestForm() {
         >
           {isSearchEnabled ? 'Search' : 'Admin Only'}
         </button>
-        {session?.user?.isAdmin && formData.id && (
+        {session?.user?.isAdmin && formData.EmpID && (
           <button
             onClick={handleDelete}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"

@@ -19,19 +19,19 @@ export async function POST(request: Request) {
     try {
       const [result] = await connection.execute(
         `INSERT INTO ChurchMembers (
-          Lastname, Firstname, Phone, Email, Picture,
-          EmailValidationDate, RequestDate, DeviceID, userid, gmail
+          lastname, firstname, phone, email, Picture_Url,
+          email_validation_date, request_date, device_id, user_id, gmail
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.lastname,
           data.firstname,
           data.phone,
           data.email,
-          data.picture,
-          data.emailValidationDate,
-          data.requestDate,
-          data.deviceId,
-          data.userId,
+          data.Picture_Url,
+          data.email_validation_date,
+          data.request_date,
+          data.device_id,
+          data.user_id,
           data.gmail
         ]
       );
@@ -102,27 +102,27 @@ export async function PUT(request: Request) {
     try {
       const [result] = await connection.execute(
         `UPDATE ChurchMembers SET
-          Lastname = ?,
-          Firstname = ?,
-          Phone = ?,
-          Email = ?,
-          Picture = ?,
-          EmailValidationDate = ?,
-          DeviceID = ?,
-          userid = ?,
+          lastname = ?,
+          firstname = ?,
+          phone = ?,
+          email = ?,
+          Picture_Url = ?,
+          email_validation_date = ?,
+          device_id = ?,
+          user_id = ?,
           gmail = ?
-        WHERE EmpId = ?`,
+        WHERE id = ?`,
         [
           data.lastname,
           data.firstname,
           data.phone,
           data.email,
-          data.picture,
-          data.emailValidationDate,
-          data.deviceId,
-          data.userId,
+          data.Picture_Url,
+          data.email_validation_date,
+          data.device_id,
+          data.user_id,
           data.gmail,
-          data.empId
+          data.id
         ]
       );
 

@@ -103,20 +103,20 @@ The application uses the following MySQL table structure:
 
 ```sql
 CREATE TABLE ChurchMembers (
-  EmpId int NOT NULL AUTO_INCREMENT,
-  Lastname varchar(50) NOT NULL,
-  Firstname varchar(50) NOT NULL,
-  Phone varchar(50) NOT NULL,
-  Email varchar(80) NOT NULL,
-  Picture longblob,
-  EmailValidationDate datetime DEFAULT NULL,
-  RequestDate datetime NOT NULL,
-  DeviceID varchar(50) DEFAULT NULL,
-  DeptId tinyint DEFAULT NULL,
-  userid char(50),
-  gmail char(80) DEFAULT NULL,
-  PRIMARY KEY (EmpId)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  EmpID INT AUTO_INCREMENT PRIMARY KEY,
+  lastname varchar(50) NOT NULL,
+  firstname varchar(50) NOT NULL,
+  phone varchar(50) NOT NULL,
+  email varchar(80) NOT NULL,
+  Picture_Url varchar(255),
+  email_validation_date datetime DEFAULT NULL,
+  request_date datetime NOT NULL,
+  device_id varchar(50) DEFAULT NULL,
+  user_id varchar(50) DEFAULT NULL,
+  gmail varchar(80) DEFAULT NULL,
+  created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
 ## Security Considerations

@@ -13,13 +13,16 @@ interface EditMemberModalProps {
 export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProps) {
   const { updateMember, loading, error } = useChurchMembers();
   const [formData, setFormData] = useState<UpdateChurchMemberInput>({
-    EmpId: member.EmpId,
-    Lastname: member.Lastname,
-    Firstname: member.Firstname,
-    Phone: member.Phone,
-    Email: member.Email,
+    EmpID: member.EmpID,
+    lastname: member.lastname,
+    firstname: member.firstname,
+    phone: member.phone,
+    email: member.email,
+    Picture_Url: member.Picture_Url,
+    EmailValidationDate: member.EmailValidationDate,
+    RequestDate: member.RequestDate,
     DeviceID: member.DeviceID || undefined,
-    DeptId: member.DeptId || undefined,
+    userid: member.userid || undefined,
     gmail: member.gmail || undefined,
   });
 
@@ -69,8 +72,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Last Name</label>
             <input
               type="text"
-              name="Lastname"
-              value={formData.Lastname}
+              name="lastname"
+              value={formData.lastname}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -81,8 +84,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">First Name</label>
             <input
               type="text"
-              name="Firstname"
-              value={formData.Firstname}
+              name="firstname"
+              value={formData.firstname}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -93,8 +96,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Phone</label>
             <input
               type="tel"
-              name="Phone"
-              value={formData.Phone}
+              name="phone"
+              value={formData.phone}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -105,8 +108,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Email</label>
             <input
               type="email"
-              name="Email"
-              value={formData.Email}
+              name="email"
+              value={formData.email}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"

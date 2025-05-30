@@ -1,117 +1,189 @@
 import { NextResponse } from 'next/server';
-import { 
-  getAllChurchMembers, 
-  getChurchMemberById,
-  getPaginatedChurchMembers,
-  createChurchMember,
-  updateChurchMember,
-  deleteChurchMember
-} from '@/lib/services/churchMembers';
-import { DatabaseError } from '@/lib/db';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/config';
+import { createPool } from '@/lib/db';
+import type { ResultSetHeader } from 'mysql2';
 
-export async function GET(request: Request) {
+const pool = createPool();
+
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const empId = searchParams.get('empId');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    
-    if (empId) {
-      const member = await getChurchMemberById(parseInt(empId));
-      if (!member) {
-        return NextResponse.json(
-          { success: false, error: 'Member not found' },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json({ success: true, data: member });
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const result = await getPaginatedChurchMembers(page, limit);
-    return NextResponse.json({ success: true, data: result });
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get('email');
+    const userId = searchParams.get('userId');
+    const EmpID = searchParams.get('EmpID');
+
+    const connection = await pool.getConnection();
+    try {
+      let query = 'SELECT * FROM ChurchMembers WHERE 1=1';
+      const params = [];
+
+      if (email) {
+        query += ' AND Email = ?';
+        params.push(email);
+      }
+      if (userId) {
+        query += ' AND userid = ?';
+        params.push(userId);
+      }
+      if (EmpID) {
+        query += ' AND EmpID = ?';
+        params.push(EmpID);
+      }
+
+      const [rows] = await connection.query(query, params);
+      return NextResponse.json({ data: rows });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error in GET /api/church-members:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof DatabaseError ? error.message : 'Internal Server Error'
-      },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const data = await request.json();
-    const empId = await createChurchMember(data);
-    return NextResponse.json({ success: true, data: { empId } });
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const data = await req.json();
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.query('START TRANSACTION');
+
+      const [result] = await connection.query<ResultSetHeader>(
+        `INSERT INTO ChurchMembers 
+        (lastname, firstname, phone, email, Picture_Url, 
+        EmailValidationDate, RequestDate, DeviceID, userid, gmail) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          data.lastname,
+          data.firstname,
+          data.phone,
+          data.email,
+          data.Picture_Url,
+          data.EmailValidationDate,
+          data.RequestDate,
+          data.DeviceID,
+          data.userid,
+          data.gmail
+        ]
+      );
+
+      await connection.query('COMMIT');
+      return NextResponse.json({ success: true, EmpID: result.insertId });
+    } catch (error) {
+      await connection.query('ROLLBACK');
+      throw error;
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error in POST /api/church-members:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof DatabaseError ? error.message : 'Internal Server Error'
-      },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(req: Request) {
   try {
-    const data = await request.json();
-    const success = await updateChurchMember(data);
-    
-    if (!success) {
-      return NextResponse.json(
-        { success: false, error: 'Member not found' },
-        { status: 404 }
-      );
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error in PUT /api/church-members:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof DatabaseError ? error.message : 'Internal Server Error'
-      },
-      { status: 500 }
-    );
-  }
-}
 
-export async function DELETE(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const empId = searchParams.get('empId');
-    
-    if (!empId) {
+    const data = await req.json();
+    if (!data.EmpID) {
       return NextResponse.json(
-        { success: false, error: 'EmpId is required' },
+        { error: 'EmpID is required' },
         { status: 400 }
       );
     }
 
-    const success = await deleteChurchMember(parseInt(empId));
-    
-    if (!success) {
+    const connection = await pool.getConnection();
+    try {
+      await connection.query('START TRANSACTION');
+
+      await connection.query(
+        `UPDATE ChurchMembers SET 
+        lastname = ?, firstname = ?, phone = ?, 
+        email = ?, Picture_Url = ?, EmailValidationDate = ?, 
+        RequestDate = ?, DeviceID = ?, userid = ?, gmail = ? 
+        WHERE EmpID = ?`,
+        [
+          data.lastname,
+          data.firstname,
+          data.phone,
+          data.email,
+          data.Picture_Url,
+          data.EmailValidationDate,
+          data.RequestDate,
+          data.DeviceID,
+          data.userid,
+          data.gmail,
+          data.EmpID
+        ]
+      );
+
+      await connection.query('COMMIT');
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      await connection.query('ROLLBACK');
+      throw error;
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Error in PUT /api/church-members:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const EmpID = searchParams.get('EmpID');
+
+    if (!EmpID) {
       return NextResponse.json(
-        { success: false, error: 'Member not found' },
-        { status: 404 }
+        { error: 'EmpID is required' },
+        { status: 400 }
       );
     }
-    
-    return NextResponse.json({ success: true });
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.query('DELETE FROM ChurchMembers WHERE EmpID = ?', [EmpID]);
+      return NextResponse.json({ success: true });
+    } finally {
+      connection.release();
+    }
   } catch (error) {
     console.error('Error in DELETE /api/church-members:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof DatabaseError ? error.message : 'Internal Server Error'
-      },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }

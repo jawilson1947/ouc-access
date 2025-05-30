@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '../../auth/config';
 import { createPool } from '@/lib/db';
 
 const pool = createPool();
@@ -19,27 +19,26 @@ export async function POST(req: Request) {
       await connection.query('START TRANSACTION');
 
       const [result] = await connection.query(
-        `INSERT INTO access_requests 
-        (emp_id, lastname, firstname, phone, email, picture_url, 
-        email_validation_date, request_date, device_id, user_id, gmail) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO ChurchMembers 
+        (lastname, firstname, phone, email, Picture_Url, 
+        EmailValidationDate, RequestDate, DeviceID, userid, gmail) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          data.empId,
           data.lastname,
           data.firstname,
           data.phone,
           data.email,
-          data.pictureUrl,
-          data.emailValidationDate,
-          data.requestDate,
-          data.deviceId,
-          data.userId,
+          data.Picture_Url,
+          data.EmailValidationDate,
+          data.RequestDate,
+          data.DeviceID,
+          data.userid,
           data.gmail
         ]
       );
 
       await connection.query('COMMIT');
-      return NextResponse.json({ success: true, id: result.insertId });
+      return NextResponse.json({ success: true, EmpID: result.insertId });
     } catch (error) {
       await connection.query('ROLLBACK');
       throw error;
@@ -47,7 +46,7 @@ export async function POST(req: Request) {
       connection.release();
     }
   } catch (error) {
-    console.error('Error in POST /api/access-requests:', error);
+    console.error('Error in POST /api/church-members:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
@@ -68,7 +67,7 @@ export async function GET(req: Request) {
 
     const connection = await pool.getConnection();
     try {
-      let query = 'SELECT * FROM access_requests WHERE 1=1';
+      let query = 'SELECT * FROM ChurchMembers WHERE 1=1';
       const params = [];
 
       if (email) {
@@ -76,7 +75,7 @@ export async function GET(req: Request) {
         params.push(email);
       }
       if (userId) {
-        query += ' AND user_id = ?';
+        query += ' AND userid = ?';
         params.push(userId);
       }
 
@@ -86,7 +85,7 @@ export async function GET(req: Request) {
       connection.release();
     }
   } catch (error) {
-    console.error('Error in GET /api/access-requests:', error);
+    console.error('Error in GET /api/church-members:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
@@ -102,9 +101,9 @@ export async function PUT(req: Request) {
     }
 
     const data = await req.json();
-    if (!data.id) {
+    if (!data.EmpID) {
       return NextResponse.json(
-        { error: 'Record ID is required' },
+        { error: 'EmpID is required' },
         { status: 400 }
       );
     }
@@ -114,23 +113,22 @@ export async function PUT(req: Request) {
       await connection.query('START TRANSACTION');
 
       await connection.query(
-        `UPDATE access_requests SET 
-        emp_id = ?, lastname = ?, firstname = ?, phone = ?, 
-        email = ?, picture_url = ?, email_validation_date = ?, 
-        device_id = ?, user_id = ?, gmail = ? 
-        WHERE id = ?`,
+        `UPDATE ChurchMembers SET 
+        lastname = ?, firstname = ?, phone = ?, 
+        email = ?, Picture_Url = ?, EmailValidationDate = ?, 
+        DeviceID = ?, userid = ?, gmail = ? 
+        WHERE EmpID = ?`,
         [
-          data.empId,
           data.lastname,
           data.firstname,
           data.phone,
           data.email,
-          data.pictureUrl,
-          data.emailValidationDate,
-          data.deviceId,
-          data.userId,
+          data.Picture_Url,
+          data.EmailValidationDate,
+          data.DeviceID,
+          data.userid,
           data.gmail,
-          data.id
+          data.EmpID
         ]
       );
 
@@ -143,7 +141,7 @@ export async function PUT(req: Request) {
       connection.release();
     }
   } catch (error) {
-    console.error('Error in PUT /api/access-requests:', error);
+    console.error('Error in PUT /api/church-members:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
@@ -159,24 +157,24 @@ export async function DELETE(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const EmpID = searchParams.get('EmpID');
 
-    if (!id) {
+    if (!EmpID) {
       return NextResponse.json(
-        { error: 'Record ID is required' },
+        { error: 'EmpID is required' },
         { status: 400 }
       );
     }
 
     const connection = await pool.getConnection();
     try {
-      await connection.query('DELETE FROM access_requests WHERE id = ?', [id]);
+      await connection.query('DELETE FROM ChurchMembers WHERE EmpID = ?', [EmpID]);
       return NextResponse.json({ success: true });
     } finally {
       connection.release();
     }
   } catch (error) {
-    console.error('Error in DELETE /api/access-requests:', error);
+    console.error('Error in DELETE /api/church-members:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

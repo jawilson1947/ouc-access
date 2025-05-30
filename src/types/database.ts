@@ -1,19 +1,20 @@
 export interface ChurchMember {
-  EmpId: number;
-  Lastname: string;
-  Firstname: string;
-  Phone: string;
-  Email: string;
-  Picture?: Buffer;
+  EmpID?: number;
+  lastname: string;
+  firstname: string;
+  phone: string;
+  email: string;
+  Picture_Url?: string | null;
   EmailValidationDate?: Date | null;
   RequestDate: Date;
   DeviceID?: string | null;
-  DeptId?: number | null;
   userid?: string | null;
   gmail?: string | null;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
-export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpId'> {}
+export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpID' | 'created_at' | 'updated_at'> {}
 export interface UpdateChurchMemberInput extends Partial<ChurchMember> {
-  EmpId: number;
+  EmpID: number;
 }

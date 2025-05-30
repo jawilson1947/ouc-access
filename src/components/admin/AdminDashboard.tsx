@@ -31,10 +31,10 @@ export function AdminDashboard() {
     getPaginatedMembers(page);
   };
 
-  const handleDelete = async (empId: number) => {
+  const handleDelete = async (EmpID: number) => {
     if (window.confirm('Are you sure you want to delete this member?')) {
       try {
-        await deleteMember(empId);
+        await deleteMember(EmpID);
         await getPaginatedMembers(currentPage); // Refresh current page
       } catch (error) {
         console.error('Failed to delete member:', error);

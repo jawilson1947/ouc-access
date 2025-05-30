@@ -4,7 +4,7 @@ import { ChurchMember } from '@/types/database';
 
 interface MemberListProps {
   members: ChurchMember[];
-  onDelete: (empId: number) => void;
+  onDelete: (EmpID: number) => void;
   onEdit: (member: ChurchMember) => void;
 }
 
@@ -33,18 +33,18 @@ export function MemberList({ members, onDelete, onEdit }: MemberListProps) {
         </thead>
         <tbody className="bg-white">
           {members.map((member) => (
-            <tr key={member.EmpId}>
+            <tr key={member.EmpID}>
               <td className="px-6 py-4 whitespace-nowrap border-b border-gray-200">
-                {member.Firstname} {member.Lastname}
+                {member.firstname} {member.lastname}
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-b border-gray-200">
-                {member.Email}
+                {member.email}
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-b border-gray-200">
-                {member.Phone}
+                {member.phone}
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-b border-gray-200">
-                {new Date(member.RequestDate).toLocaleDateString()}
+                {new Date(member.request_date).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-b border-gray-200">
                 <button
@@ -54,7 +54,7 @@ export function MemberList({ members, onDelete, onEdit }: MemberListProps) {
                   Edit
                 </button>
                 <button
-                  onClick={() => onDelete(member.EmpId)}
+                  onClick={() => onDelete(member.EmpID)}
                   className="text-red-600 hover:text-red-900"
                 >
                   Delete

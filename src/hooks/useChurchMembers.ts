@@ -127,7 +127,7 @@ export function useChurchMembers() {
       });
       const data = await response.json();
       if (!data.success) throw new Error(data.error);
-      return data.data.empId;
+      return data.data.EmpID;
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -160,10 +160,10 @@ export function useChurchMembers() {
     }
   };
 
-  const deleteMember = async (empId: number) => {
+  const deleteMember = async (EmpID: number) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const response = await fetch(`/api/church-members?empId=${empId}`, {
+      const response = await fetch(`/api/church-members?EmpID=${EmpID}`, {
         method: 'DELETE',
       });
       const data = await response.json();

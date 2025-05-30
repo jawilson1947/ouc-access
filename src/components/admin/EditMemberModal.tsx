@@ -13,13 +13,13 @@ interface EditMemberModalProps {
 export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProps) {
   const { updateMember, loading, error } = useChurchMembers();
   const [formData, setFormData] = useState<UpdateChurchMemberInput>({
-    EmpId: member.EmpId,
-    Lastname: member.Lastname,
-    Firstname: member.Firstname,
-    Phone: member.Phone,
-    Email: member.Email,
-    DeviceID: member.DeviceID || undefined,
-    DeptId: member.DeptId || undefined,
+    EmpID: member.EmpID as number,
+    lastname: member.lastname,
+    firstname: member.firstname,
+    phone: member.phone,
+    email: member.email,
+    device_id: member.device_id || undefined,
+    user_id: member.user_id || undefined,
     gmail: member.gmail || undefined,
   });
 
@@ -69,8 +69,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Last Name</label>
             <input
               type="text"
-              name="Lastname"
-              value={formData.Lastname}
+              name="lastname"
+              value={formData.lastname}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -81,8 +81,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">First Name</label>
             <input
               type="text"
-              name="Firstname"
-              value={formData.Firstname}
+              name="firstname"
+              value={formData.firstname}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -93,8 +93,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Phone</label>
             <input
               type="tel"
-              name="Phone"
-              value={formData.Phone}
+              name="phone"
+              value={formData.phone}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -105,8 +105,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Email</label>
             <input
               type="email"
-              name="Email"
-              value={formData.Email}
+              name="email"
+              value={formData.email}
               onChange={handleInputChange}
               required
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -117,19 +117,19 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Device ID</label>
             <input
               type="text"
-              name="DeviceID"
-              value={formData.DeviceID || ''}
+              name="device_id"
+              value={formData.device_id || ''}
               onChange={handleInputChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Department ID</label>
+            <label className="block text-sm font-medium text-gray-700">User ID</label>
             <input
               type="number"
-              name="DeptId"
-              value={formData.DeptId || ''}
+              name="user_id"
+              value={formData.user_id || ''}
               onChange={handleInputChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
