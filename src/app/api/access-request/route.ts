@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       const [result] = await connection.execute(
         `INSERT INTO ChurchMembers (
           lastname, firstname, phone, email, Picture_Url,
-          email_validation_date, request_date, device_id, user_id, gmail
+          EmailValidationDate, RequestDate, DeviceID, userid, gmail
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.lastname,
@@ -28,10 +28,10 @@ export async function POST(request: Request) {
           data.phone,
           data.email,
           data.Picture_Url,
-          data.email_validation_date,
-          data.request_date,
-          data.device_id,
-          data.user_id,
+          data.EmailValidationDate,
+          data.RequestDate,
+          data.DeviceID,
+          data.userid,
           data.gmail
         ]
       );
@@ -107,9 +107,10 @@ export async function PUT(request: Request) {
           phone = ?,
           email = ?,
           Picture_Url = ?,
-          email_validation_date = ?,
-          device_id = ?,
-          user_id = ?,
+          EmailValidationDate = ?,
+          RequestDate = ?,
+          DeviceID = ?,
+          userid = ?,
           gmail = ?
         WHERE id = ?`,
         [
@@ -118,9 +119,10 @@ export async function PUT(request: Request) {
           data.phone,
           data.email,
           data.Picture_Url,
-          data.email_validation_date,
-          data.device_id,
-          data.user_id,
+          data.EmailValidationDate,
+          data.RequestDate,
+          data.DeviceID,
+          data.userid,
           data.gmail,
           data.id
         ]

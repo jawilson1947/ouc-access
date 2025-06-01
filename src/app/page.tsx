@@ -10,17 +10,15 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('Home page - Session status:', status);
-    console.log('Home page - Session data:', session);
-
-    if (status === 'unauthenticated') {
-      console.log('Redirecting to login - no session found');
-      router.replace('/login');
+    const nonGmailEmail = localStorage.getItem('nonGmailEmail');
+    
+    if (status === 'unauthenticated' && !nonGmailEmail) {
+      router.push('/login');
+      return;
     }
-  }, [status, session, router]);
+  }, [status, router]);
 
   if (status === 'loading') {
-    console.log('Home page - Loading session...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -28,23 +26,15 @@ export default function Home() {
     );
   }
 
-  if (!session) {
-    console.log('Home page - No session, waiting for redirect...');
-    return null; // Don't render anything while redirecting
+  // Allow access if user has either a valid session or a non-Gmail email
+  const nonGmailEmail = localStorage.getItem('nonGmailEmail');
+  if (!session && !nonGmailEmail) {
+    return null;
   }
 
-  console.log('Home page - Rendering with session:', session);
   return (
     <main className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome, {session.user?.name}
-          </h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-500">{session.user?.email}</span>
-          </div>
-        </div>
         <AccessRequestForm />
       </div>
     </main>

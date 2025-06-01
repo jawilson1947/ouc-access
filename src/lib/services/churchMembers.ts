@@ -135,7 +135,7 @@ export async function createChurchMember(data: CreateChurchMemberInput): Promise
   const result = await executeQuery<any>(
     `INSERT INTO ChurchMembers (
       lastname, firstname, phone, email, Picture_Url,
-      email_validation_date, request_date, device_id, user_id, gmail
+      EmailValidationDate, RequestDate, DeviceID, userid, gmail
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.lastname,
@@ -143,10 +143,10 @@ export async function createChurchMember(data: CreateChurchMemberInput): Promise
       data.phone,
       data.email,
       data.Picture_Url,
-      data.email_validation_date,
-      data.request_date,
-      data.device_id,
-      data.user_id,
+      data.EmailValidationDate,
+      data.RequestDate,
+      data.DeviceID,
+      data.userid,
       data.gmail
     ]
   );
@@ -157,7 +157,7 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
   const query = `
     UPDATE ChurchMembers SET
     lastname = ?, firstname = ?, phone = ?, email = ?, Picture_Url = ?,
-    email_validation_date = ?, request_date = ?, device_id = ?, user_id = ?, gmail = ?
+    EmailValidationDate = ?, RequestDate = ?, DeviceID = ?, userid = ?, gmail = ?
     WHERE EmpID = ?
   `;
   const values = [
@@ -166,10 +166,10 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
     data.phone,
     data.email,
     data.Picture_Url,
-    data.email_validation_date,
-    data.request_date,
-    data.device_id,
-    data.user_id,
+    data.EmailValidationDate,
+    data.RequestDate,
+    data.DeviceID,
+    data.userid,
     data.gmail,
     data.EmpID
   ];

@@ -1,5 +1,6 @@
 import { AuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
+import CredentialsProvider from "next-auth/providers/credentials";
 
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   throw new Error('Missing Google OAuth credentials');
@@ -20,25 +21,34 @@ export const authOptions: AuthOptions = {
         }
       }
     }),
+    CredentialsProvider({
+      name: "Email",
+      credentials: {
+        email: { label: "Email", type: "email" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email) return null;
+        
+        // Return a simple user object for non-Gmail authentication
+        return {
+          id: credentials.email,
+          email: credentials.email,
+          name: credentials.email
+        };
+      }
+    })
   ],
   pages: {
     signIn: '/login',
-    error: '/login', // Error code passed in query string as ?error=
-  },
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    error: '/login',
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (!user?.email) {
-        return false;
-      }
-      return true;
+    async signIn({ user }) {
+      return !!user;
     },
     async jwt({ token, user, account }) {
       if (account && user?.email) {
-        token.accessToken = account.access_token;
+        token.accessToken = account?.access_token;
         token.isAdmin = user.email === ADMIN_EMAIL;
       }
       return token;
@@ -51,13 +61,18 @@ export const authOptions: AuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Only allow relative URLs or URLs matching the base URL
-      if (url.startsWith('/') || url.startsWith(baseUrl)) {
+      // Handle redirects
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      if (url.startsWith(baseUrl)) {
         return url;
       }
       return baseUrl;
     },
   },
-  debug: process.env.NODE_ENV === 'development',
+  session: {
+    strategy: 'jwt',
+  },
   secret: process.env.NEXTAUTH_SECRET,
-}; 
+};

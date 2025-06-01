@@ -9,7 +9,7 @@ const pool = createPool();
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,24 +17,59 @@ export async function GET(req: Request) {
     const email = searchParams.get('email');
     const userId = searchParams.get('userId');
     const EmpID = searchParams.get('EmpID');
+    const lastname = searchParams.get('lastname');
+
+    // If user is not admin, they can only search for their own email
+    if (!session.user.isAdmin && email !== session.user.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const connection = await pool.getConnection();
     try {
-      let query = 'SELECT * FROM ChurchMembers WHERE 1=1';
+      let query = `SELECT 
+        EmpID,
+        lastname,
+        firstname,
+        phone,
+        email,
+        Picture_Url,
+        EmailValidationDate,
+        RequestDate,
+        DeviceID,
+        userid,
+        gmail
+        FROM ChurchMembers`;
       const params = [];
 
-      if (email) {
-        query += ' AND Email = ?';
+      // If user is not admin, force email filter
+      if (!session.user.isAdmin) {
+        query += ' WHERE email = ?';
         params.push(email);
+      } else {
+        // Admin can use all filters
+        if (lastname !== '*') {
+          query += ' WHERE 1=1';
+          if (email) {
+            query += ' AND email = ?';
+            params.push(email);
+          }
+          if (userId) {
+            query += ' AND userid = ?';
+            params.push(userId);
+          }
+          if (EmpID) {
+            query += ' AND EmpID = ?';
+            params.push(EmpID);
+          }
+          if (lastname) {
+            query += ' AND lastname = ?';
+            params.push(lastname);
+          }
+        }
       }
-      if (userId) {
-        query += ' AND userid = ?';
-        params.push(userId);
-      }
-      if (EmpID) {
-        query += ' AND EmpID = ?';
-        params.push(EmpID);
-      }
+
+      // Add ORDER BY clause
+      query += ' ORDER BY lastname, firstname';
 
       const [rows] = await connection.query(query, params);
       return NextResponse.json({ data: rows });

@@ -32,4 +32,14 @@ body {
 .picture-frame.drag-over {
   border-color: #4299e1;
   background-color: rgba(66, 153, 225, 0.1);
+}
+
+/* Hide any loading indicators */
+.loading-indicator {
+  display: none !important;
+}
+
+/* Ensure modals don't show unexpectedly */
+.modal-overlay {
+  display: none !important;
 } 

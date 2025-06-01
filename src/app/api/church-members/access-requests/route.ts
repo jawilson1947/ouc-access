@@ -67,7 +67,19 @@ export async function GET(req: Request) {
 
     const connection = await pool.getConnection();
     try {
-      let query = 'SELECT * FROM ChurchMembers WHERE 1=1';
+      let query = `SELECT 
+        EmpID,
+        lastname,
+        firstname,
+        phone,
+        email,
+        Picture_Url,
+        EmailValidationDate,
+        RequestDate,
+        DeviceID,
+        userid,
+        gmail
+        FROM ChurchMembers WHERE 1=1`;
       const params = [];
 
       if (email) {
