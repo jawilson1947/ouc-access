@@ -149,6 +149,7 @@ export default function LoginPage() {
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
+                  {logoSrc ? (
                     <img
                       src="https://i1.wp.com/oucsda.org/wp-content/uploads/logo.png?fit=358%2C100&ssl=1"
                       alt="OUC Logo"

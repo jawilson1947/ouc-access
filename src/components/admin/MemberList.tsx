@@ -44,7 +44,7 @@ export function MemberList({ members, onDelete, onEdit }: MemberListProps) {
                 {member.phone}
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-b border-gray-200">
-                {new Date(member.request_date).toLocaleDateString()}
+                {new Date(member.RequestDate).toLocaleDateString()}
               </td>
               <td className="px-6 py-4 whitespace-nowrap border-b border-gray-200">
                 <button
@@ -54,8 +54,9 @@ export function MemberList({ members, onDelete, onEdit }: MemberListProps) {
                   Edit
                 </button>
                 <button
-                  onClick={() => onDelete(member.EmpID)}
+                  onClick={() => member.EmpID && onDelete(member.EmpID)}
                   className="text-red-600 hover:text-red-900"
+                  disabled={!member.EmpID}
                 >
                   Delete
                 </button>

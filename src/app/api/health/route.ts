@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createPool } from '@/lib/db';
+import { RowDataPacket } from 'mysql2';
 
 export async function GET() {
   const healthCheck = {
@@ -8,7 +9,8 @@ export async function GET() {
     database: {
       connected: false,
       error: null as string | null,
-      version: null as string | null
+      version: null as string | null,
+      tables: null as any
     },
     environment: {
       MYSQL_HOST: process.env.MYSQL_HOST ? 'set' : 'missing',
@@ -25,7 +27,7 @@ export async function GET() {
     
     try {
       // Test database connection and get version
-      const [rows] = await connection.query('SELECT VERSION() as version');
+      const [rows] = await connection.query('SELECT VERSION() as version') as [RowDataPacket[], any];
       healthCheck.database.connected = true;
       healthCheck.database.version = rows[0].version;
       healthCheck.status = 'healthy';

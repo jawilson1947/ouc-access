@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../../auth/config';
 import { createPool } from '@/lib/db';
+import { ResultSetHeader } from 'mysql2';
 
 const pool = createPool();
 
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
           data.userid,
           data.gmail
         ]
-      );
+      ) as [ResultSetHeader, any];
 
       await connection.query('COMMIT');
       return NextResponse.json({ success: true, EmpID: result.insertId });

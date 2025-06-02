@@ -23,6 +23,7 @@ export async function executeQuery<T>(
   query: string,
   params?: any[]
 ): Promise<T> {
+  const pool = createPool();
   const connection = await pool.getConnection();
   try {
     const [rows] = await connection.execute(query, params);
@@ -31,5 +32,6 @@ export async function executeQuery<T>(
     throw new DatabaseError('Database query failed', error);
   } finally {
     connection.release();
+    await pool.end();
   }
 }
