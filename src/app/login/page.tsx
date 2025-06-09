@@ -11,7 +11,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [logoSrc, setLogoSrc] = useState<string>('');
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -41,14 +40,36 @@ export default function LoginPage() {
 
     try {
       setIsLoading(true);
+      console.log('Attempting to authenticate with email:', email);
+      
+      // Store the email in localStorage for use in the access-request form
       localStorage.setItem('nonGmailEmail', email);
-      await signIn('credentials', {
+      
+      // Use signIn with redirect: false to handle redirect manually
+      const result = await signIn('credentials', {
         email: email,
-        redirect: true,
+        redirect: false,
         callbackUrl: '/access-request'
       });
+      
+      console.log('SignIn result:', result);
+      
+      // Handle the result manually
+      if (result?.ok && !result?.error) {
+        console.log('Authentication successful, redirecting to access-request');
+        // Small delay to ensure authentication state is set, then force redirect with cache-busting
+        setTimeout(() => {
+          window.location.href = '/access-request?t=' + Date.now();
+        }, 100);
+      } else {
+        console.error('Authentication failed:', result?.error);
+        setEmailError('Authentication failed. Please try again.');
+        setIsLoading(false);
+      }
+      
     } catch (error) {
       console.error('Email submit error:', error);
+      setEmailError('An error occurred. Please try again.');
       setIsLoading(false);
     }
   };
@@ -57,29 +78,13 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       await signIn('google', {
-        callbackUrl: 'http://localhost:3000/access-request',
+        callbackUrl: '/access-request',
       });
     } catch (error) {
       console.error('Sign-in error:', error);
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    const loadLogo = async () => {
-      try {
-        const response = await fetch('/ouc-logo.png');
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          setLogoSrc(url);
-        }
-      } catch (error) {
-        console.error('Failed to load logo:', error);
-      }
-    };
-    loadLogo();
-  }, []);
 
   if (status === 'loading' || isLoading) {
     return (
@@ -104,7 +109,7 @@ export default function LoginPage() {
       justifyContent: 'center'
     }}>
       <img
-        src="/ouc-logo.svg"
+        src="/ouc-logo2.png"
         alt="OUC Logo"
         style={{ 
           width: '150px', 
@@ -133,12 +138,25 @@ export default function LoginPage() {
     </svg>
   );
 
+  const EmailIcon = () => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="20" 
+      height="20" 
+      viewBox="0 0 24 24"
+      style={{ display: 'inline-block' }}
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" fill="none" stroke="currentColor" strokeWidth="2"/>
+      <path d="m22 7-10 5L2 7" fill="none" stroke="currentColor" strokeWidth="2"/>
+    </svg>
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#000033' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#000033', paddingBottom: '80px' }}>
       <div className="rounded-lg p-8 shadow-lg" style={{ backgroundColor: '#000033', border: '2px solid white' }}>
         <table style={{ width: '400px', margin: '0 auto' }}>
           <tbody>
-            {/* Row 1: Logo - Using converted SVG */}
+            {/* Row 1: Logo - Using local ouc-logo.png */}
             <tr>
               <td className="p-4" style={{ textAlign: 'center' }}>
                 <div style={{ 
@@ -149,19 +167,17 @@ export default function LoginPage() {
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                    <img
-                      src="https://i1.wp.com/oucsda.org/wp-content/uploads/logo.png?fit=358%2C100&ssl=1"
-                      alt="OUC Logo"
-                      style={{ 
-                        width: '200px', 
-                        height: '200px', 
-                        objectFit: 'contain'
-                      }}
-                      onLoad={() => console.log('Dynamic logo loaded!')}
-                    />
-                  ) : (
-                    <div style={{ color: '#000033' }}>Loading logo...</div>
-                  )}
+                  <Image
+                    src="/ouc-logo.png"
+                    alt="OUC Logo"
+                    width={200}
+                    height={200}
+                    style={{ 
+                      objectFit: 'contain'
+                    }}
+                    onLoad={() => console.log('OUC Logo loaded successfully!')}
+                    onError={(e) => console.error('OUC Logo failed to load:', e)}
+                  />
                 </div>
               </td>
             </tr>
@@ -193,12 +209,17 @@ export default function LoginPage() {
                   onChange={handleEmailChange}
                   style={{ 
                     width: '100%',
-                    padding: '8px',
+                    padding: '12px 16px',
                     backgroundColor: '#000033',
                     color: '#FFFFFF',
                     textAlign: 'center',
-                    border: '1px solid white',
-                    borderRadius: '4px'
+                    border: '2px solid white',
+                    borderRadius: '8px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                    height: '52px',
+                    boxSizing: 'border-box'
                   }}
                   placeholder="your.email@example.com"
                 />
@@ -210,22 +231,43 @@ export default function LoginPage() {
               </td>
             </tr>
 
-            {/* Row 5: Submit Button */}
+            {/* Row 5: Email Submit Button */}
             <tr>
               <td className="p-4" style={{ textAlign: 'center' }}>
                 <button
                   onClick={handleEmailSubmit}
                   style={{ 
                     width: '100%',
-                    padding: '8px 16px',
-                    backgroundColor: '#000033',
+                    padding: '12px 16px',
+                    backgroundColor: '#1d4ed8',
                     color: '#FFFFFF',
-                    border: '1px solid white',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
+                    border: '2px solid #3b82f6',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                    height: '52px',
+                    boxSizing: 'border-box'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2563eb';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#1d4ed8';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
                   }}
                 >
-                  Submit
+                  <EmailIcon />
+                  Continue with Email
                 </button>
               </td>
             </tr>
@@ -261,8 +303,75 @@ export default function LoginPage() {
                 </button>
               </td>
             </tr>
+
+            {/* Row 8: Welcome Message - Enhanced */}
+            <tr>
+              <td className="p-4" style={{ textAlign: 'left', paddingTop: '20px', paddingBottom: '40px' }}>
+                <div style={{ 
+                  backgroundColor: 'rgba(0, 0, 51, 0.9)',
+                  color: '#FFFFFF',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  border: '2px solid rgba(255, 255, 255, 0.8)',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  textAlign: 'left',
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)'
+                }}>
+                  <p style={{ margin: '0 0 15px 0', fontWeight: 'bold', fontSize: '16px', color: '#60a5fa' }}>
+                    🏛️ Welcome to OUC Facility Access
+                  </p>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '500' }}>
+                    Request secure access to Oakwood University Church facilities in just a few simple steps.
+                  </p>
+                  <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                    <p style={{ margin: '0 0 8px 0' }}>
+                      <strong>📝 What you'll need:</strong> Full name, phone number, email, and a recent photo
+                    </p>
+                    <p style={{ margin: '0 0 8px 0' }}>
+                      <strong>🔐 Login options:</strong> Use your Gmail account or any email address
+                    </p>
+                    <p style={{ margin: '0 0 8px 0' }}>
+                      <strong>📱 Digital Key:</strong> Follow the mobile app guide for device access
+                    </p>
+                    <p style={{ margin: '0 0 12px 0' }}>
+                      <strong>💡 Easy updates:</strong> Return anytime to modify your request
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#b3b3b3' }}>
+                      <strong>Need help?</strong> Call (256) 837-1255 x199 or email ouc-it@oucsda.org
+                    </p>
+                  </div>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
+      </div>
+      
+      {/* Footer - Enhanced */}
+      <div style={{
+        position: 'fixed',
+        bottom: '0',
+        left: '0',
+        right: '0',
+        backgroundColor: 'rgba(0, 0, 51, 0.95)',
+        borderTop: '2px solid rgba(255, 255, 255, 0.8)',
+        padding: '18px 20px',
+        textAlign: 'center',
+        backdropFilter: 'blur(10px)',
+        boxShadow: '0 -4px 8px rgba(0, 0, 0, 0.3)',
+        zIndex: 1000
+      }}>
+        <p style={{
+          color: '#FFFFFF',
+          fontSize: '13px',
+          margin: '0',
+          fontFamily: 'Arial, sans-serif',
+          fontWeight: '500',
+          letterSpacing: '0.5px'
+        }}>
+          Copyright Oakwood University Church 2024 Developed by OUC Information Technology Dept
+        </p>
       </div>
     </div>
   );

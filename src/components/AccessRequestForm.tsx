@@ -18,7 +18,7 @@ interface FormData {
   DeviceID: string;
   userid: string;
   gmail: string;
-  Picture_Url?: string;
+  PictureUrl?: string;
 }
 
 interface RequestData {
@@ -26,7 +26,7 @@ interface RequestData {
   firstname: string;
   phone: string;
   email: string;
-  Picture_Url?: string | null;
+  PictureUrl?: string | null;
   EmailValidationDate: string | null;
   RequestDate: string; // MySQL DATETIME format: YYYY-MM-DD HH:mm:ss
   DeviceID: string;
@@ -82,6 +82,20 @@ export default function AccessRequestForm() {
 
   // Add a loading state
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Add state for initial data loading
+  const [isLoadingUserData, setIsLoadingUserData] = useState(true);
+  const [userDataStatus, setUserDataStatus] = useState<'loading' | 'found' | 'new' | 'error'>('loading');
+
+  // Add state for handling image errors
+  const [imageError, setImageError] = useState(false);
+
+  // Debug currentImage changes
+  useEffect(() => {
+    console.log('🖼️ Current image state changed to:', currentImage);
+    // Reset image error state when image source changes
+    setImageError(false);
+  }, [currentImage]);
 
   useEffect(() => {
     const adminEmail = 'jawilson1947@gmail.com';
@@ -114,58 +128,139 @@ export default function AccessRequestForm() {
         }));
         // Search for the user's record when the component mounts
         handleInitialSearch(nonGmailEmail);
+      } else {
+        // No email found at all - set as new user
+        setIsLoadingUserData(false);
+        setUserDataStatus('new');
       }
     }
   }, [session]);
 
   const handleInitialSearch = async (email: string) => {
     try {
+      console.log('🔍 Starting initial search for email:', email);
+      setIsLoadingUserData(true);
+      setUserDataStatus('loading');
+      
       const params = new URLSearchParams();
       params.append('email', email);
       
-      const response = await fetch(`/api/church-members?${params.toString()}`);
+      console.log('📡 Making API request to:', `/api/church-members/search?${params.toString()}`);
+      
+      const response = await fetch(`/api/church-members/search?${params.toString()}`);
+      
+      console.log('📨 API Response status:', response.status);
       
       if (!response.ok) {
         if (response.status === 401) {
+          console.log('⚠️ Authentication issue - continuing as new user');
+          setUserDataStatus('new');
           // If unauthorized, just continue without showing an error
           // This happens for new users who don't have a record yet
           return;
         }
+        console.error('❌ Search failed with status:', response.status);
+        setUserDataStatus('error');
         throw new Error('Search failed');
       }
       
       const result = await response.json();
+      console.log('📋 Search result:', result);
+      console.log('📋 Result.data type:', typeof result.data);
+      console.log('📋 Result.data length:', result.data ? result.data.length : 'undefined');
       
       if (result.data && result.data.length > 0) {
         const record = result.data[0];
-        if (record.Picture_Url) {
-          setCurrentImage(record.Picture_Url);
-        }
+        console.log('✅ Found existing record for user:', record.firstname, record.lastname);
+        console.log('🔍 Full record data:', record);
         
-        const emailValidationDate = formatMySQLDateTime(record.EmailValidationDate);
-        const requestDate = formatMySQLDateTime(record.RequestDate) || 
-          formatMySQLDateTime(new Date());
+        // Debug individual field values
+        console.log('🔍 Record field values:');
+        console.log('  - lastname:', record.lastname);
+        console.log('  - firstname:', record.firstname);
+        console.log('  - phone:', record.phone);
+        console.log('  - email:', record.email);
+        console.log('  - EmpID:', record.EmpID);
+        console.log('  - userid:', record.userid);
+        console.log('  - DeviceID:', record.DeviceID);
+        console.log('  - PictureUrl:', record.PictureUrl);
+        console.log('  - EmailValidationDate:', record.EmailValidationDate);
+        console.log('  - RequestDate:', record.RequestDate);
+        
+        setUserDataStatus('found');
+        
+        try {
+          if (record.PictureUrl) {
+            console.log('🖼️ Loading user photo:', record.PictureUrl);
+            // Validate the PictureUrl before setting it
+            if (typeof record.PictureUrl === 'string' && record.PictureUrl.length > 0) {
+              setCurrentImage(record.PictureUrl);
+            } else {
+              console.log('🖼️ Invalid PictureUrl, using default');
+              setCurrentImage('/PhotoID.jpeg');
+            }
+            setImageError(false);
+          } else {
+            console.log('🖼️ No photo URL, using default');
+            setCurrentImage('/PhotoID.jpeg');
+            setImageError(false);
+          }
+          
+          console.log('🗓️ Processing dates...');
+          const emailValidationDate = formatMySQLDateTime(record.EmailValidationDate);
+          const requestDate = formatMySQLDateTime(record.RequestDate) || 
+            formatMySQLDateTime(new Date());
+          console.log('🗓️ Processed dates:', { emailValidationDate, requestDate });
 
-        setFormData(prevData => ({
-          ...prevData,
-          EmpID: record.EmpID || 0,
-          lastname: record.lastname || '',
-          firstname: record.firstname || '',
-          phone: record.phone || '',
-          email: record.email || email,
-          picture: null,
-          Picture_Url: record.Picture_Url || null,
-          EmailValidationDate: emailValidationDate,
-          RequestDate: requestDate,
-          DeviceID: record.DeviceID || '',
-          userid: record.userid || '',
-          gmail: record.gmail || (email.endsWith('@gmail.com') ? email : '')
-        }));
+          console.log('📝 Setting form data...');
+          const newFormData = {
+            EmpID: record.EmpID || 0,
+            lastname: record.lastname || '',
+            firstname: record.firstname || '',
+            phone: record.phone || '',
+            email: record.email || email,
+            picture: null,
+            PictureUrl: record.PictureUrl || undefined,
+            EmailValidationDate: emailValidationDate || null,
+            RequestDate: requestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
+            DeviceID: record.DeviceID || '',
+            userid: record.userid || '',
+            gmail: record.gmail || (email.endsWith('@gmail.com') ? email : '')
+          };
+          
+          console.log('📝 New form data being set:', newFormData);
+          
+          setFormData(prevData => ({
+            ...prevData,
+            ...newFormData
+          }));
+          
+          console.log('✅ Form populated with existing data successfully');
+          
+          // Verify the form data was set correctly after a brief delay
+          setTimeout(() => {
+            console.log('🔍 Verifying form data after setState:', {
+              lastname: formData.lastname,
+              firstname: formData.firstname,
+              phone: formData.phone
+            });
+          }, 100);
+          
+        } catch (formError) {
+          console.error('❌ Error during form population:', formError);
+          setUserDataStatus('error');
+        }
+      } else {
+        console.log('🆕 No existing record found - user will create new record');
+        setUserDataStatus('new');
       }
       // If no records found, the form will stay empty for new user registration
     } catch (error) {
-      console.error('Initial search error:', error);
+      console.error('❌ Initial search error:', error);
+      setUserDataStatus('error');
       // Don't show error to user, just let them fill out the form as a new user
+    } finally {
+      setIsLoadingUserData(false);
     }
   };
 
@@ -200,6 +295,7 @@ export default function AccessRequestForm() {
       reader.onload = (e) => {
         if (e.target?.result) {
           setCurrentImage(e.target.result as string);
+          setImageError(false);
         }
       };
       reader.readAsDataURL(file);
@@ -233,7 +329,7 @@ export default function AccessRequestForm() {
         params.append('lastname', '*');
       }
       
-      const response = await fetch(`/api/church-members?${params.toString()}`);
+      const response = await fetch(`/api/church-members/search?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error('Search failed');
@@ -250,10 +346,12 @@ export default function AccessRequestForm() {
         const record = result.data[0];
 
         // First update the image if it exists
-        if (record.Picture_Url) {
-          setCurrentImage(record.Picture_Url);
+        if (record.PictureUrl) {
+          setCurrentImage(record.PictureUrl);
+          setImageError(false);
         } else {
           setCurrentImage('/PhotoID.jpeg');
+          setImageError(false);
         }
 
         // Update form data with the actual record data
@@ -265,7 +363,7 @@ export default function AccessRequestForm() {
           phone: record.phone || '',
           email: record.email || '',
           picture: null,
-          Picture_Url: record.Picture_Url || null,
+          PictureUrl: record.PictureUrl || undefined,
           EmailValidationDate: record.EmailValidationDate || null,
           RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
           DeviceID: record.DeviceID || '',
@@ -304,10 +402,12 @@ export default function AccessRequestForm() {
       const newIndex = currentRecordIndex - 1;
       const record = allRecords[newIndex];
       
-      if (record.Picture_Url) {
-        setCurrentImage(record.Picture_Url);
+      if (record.PictureUrl) {
+        setCurrentImage(record.PictureUrl);
+        setImageError(false);
       } else {
         setCurrentImage('/PhotoID.jpeg');
+        setImageError(false);
       }
 
       setFormData(prevData => ({
@@ -318,7 +418,7 @@ export default function AccessRequestForm() {
         phone: record.phone || '',
         email: record.email || '',
         picture: null,
-        Picture_Url: record.Picture_Url || null,
+        PictureUrl: record.PictureUrl || undefined,
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
@@ -335,10 +435,12 @@ export default function AccessRequestForm() {
       const newIndex = currentRecordIndex + 1;
       const record = allRecords[newIndex];
       
-      if (record.Picture_Url) {
-        setCurrentImage(record.Picture_Url);
+      if (record.PictureUrl) {
+        setCurrentImage(record.PictureUrl);
+        setImageError(false);
       } else {
         setCurrentImage('/PhotoID.jpeg');
+        setImageError(false);
       }
 
       setFormData(prevData => ({
@@ -349,7 +451,7 @@ export default function AccessRequestForm() {
         phone: record.phone || '',
         email: record.email || '',
         picture: null,
-        Picture_Url: record.Picture_Url || null,
+        PictureUrl: record.PictureUrl || undefined,
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
@@ -366,7 +468,7 @@ export default function AccessRequestForm() {
       setIsLoading(true);
       
       // Upload picture if exists
-      let Picture_Url = formData.Picture_Url;
+      let PictureUrl = formData.PictureUrl;
       if (formData.picture) {
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.picture);
@@ -378,7 +480,7 @@ export default function AccessRequestForm() {
           throw new Error('Failed to upload picture');
         }
         const { url } = await uploadResponse.json();
-        Picture_Url = url;
+        PictureUrl = url;
       }
 
       // Format the date in MySQL format if it's in ISO format
@@ -398,7 +500,7 @@ export default function AccessRequestForm() {
         firstname: formData.firstname,
         phone: formData.phone,
         email: formData.email,
-        Picture_Url,
+        PictureUrl,
         EmailValidationDate: formData.EmailValidationDate,
         RequestDate: formattedRequestDate,
         DeviceID: formData.DeviceID,
@@ -435,8 +537,10 @@ export default function AccessRequestForm() {
       // Determine if this is an update or new record
       const action = formData.EmpID ? 'update' : 'create';
       
-      // Send email notification
+      // Send email notification with enhanced feedback
+      let emailStatus = 'unknown';
       try {
+        console.log('Attempting to send email notification...');
         const emailResponse = await fetch('/api/send-email', {
           method: 'POST',
           headers: {
@@ -451,17 +555,34 @@ export default function AccessRequestForm() {
           }),
         });
 
+        const emailResult = await emailResponse.json();
+        
         if (emailResponse.ok) {
-          console.log('Email notification sent successfully');
+          emailStatus = 'sent';
+          console.log('✅ Email notification sent successfully:', emailResult.message);
         } else {
-          console.warn('Failed to send email notification');
+          emailStatus = 'failed';
+          console.warn('⚠️ Email notification failed:', emailResult.error);
+          if (emailResult.configIssues) {
+            console.warn('📧 Email configuration issues:', emailResult.configIssues);
+          }
         }
-      } catch (emailError) {
-        console.error('Email notification error:', emailError);
-        // Don't fail the save if email fails
+      } catch (emailError: any) {
+        emailStatus = 'error';
+        console.error('❌ Email notification error:', emailError.message || emailError);
       }
 
-      alert('Record saved successfully');
+      // Enhanced success message based on email status
+      let successMessage = 'Record saved successfully!';
+      if (emailStatus === 'sent') {
+        successMessage += '\n\n✅ Email notification sent to OUC IT.';
+      } else if (emailStatus === 'failed') {
+        successMessage += '\n\n⚠️ Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.';
+      } else if (emailStatus === 'error') {
+        successMessage += '\n\n❌ Record saved but email service unavailable.\nPlease contact OUC IT to confirm your request.';
+      }
+
+      alert(successMessage);
       
     } catch (error) {
       console.error('Save error:', error);
@@ -520,6 +641,7 @@ export default function AccessRequestForm() {
       gmail: session?.user?.email || ''
     });
     setCurrentImage('/PhotoID.jpeg');
+    setImageError(false);
   };
 
   const formatDate = (dateStr: string | null): string => {
@@ -535,257 +657,829 @@ export default function AccessRequestForm() {
     // Clear the non-Gmail email from localStorage if it exists
     localStorage.removeItem('nonGmailEmail');
     
+    // Clear any potential cache
+    if ('caches' in window) {
+      try {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+      } catch (error) {
+        console.log('Cache clearing not supported or failed:', error);
+      }
+    }
+    
     // If there's a session (Google login), sign out properly
     if (session) {
       await signOut({ 
         redirect: true,
-        callbackUrl: '/login'
+        callbackUrl: '/login?refreshed=' + Date.now()
       });
     } else {
-      // If no session (non-Google login), just redirect
-      router.push('/login');
+      // If no session (non-Google login), force a fresh redirect with cache busting
+      window.location.href = '/login?refreshed=' + Date.now();
     }
   };
 
   return (
-    <div className="relative">
-      {/* Add a styled loading indicator that's only visible when loading */}
+    <div className="min-h-screen" style={{ 
+      background: 'linear-gradient(135deg, #000033 0%, #1a1a5c 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '3px'
+    }}>
+      {/* Loading indicator */}
       {isLoading && (
-        <div 
-          style={{
-            display: 'none' // Hide the loading indicator completely
-          }}
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-        >
-          <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 50
+        }}>
+          <div style={{
+            width: '18px',
+            height: '18px',
+            border: '3px solid transparent',
+            borderTop: '3px solid #60a5fa',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
         </div>
       )}
       
-      <div className="bg-white p-8 rounded-lg shadow-md max-w-2xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6">OUC Access Control Request</h2>
+      <div style={{ width: '100%', maxWidth: '481px' }}>
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '8px',
+          boxShadow: '0 8px 18px rgba(0, 0, 0, 0.25)',
+          border: '1px solid rgba(0, 0, 51, 0.3)',
+          padding: '12px'
+        }}>
+          {/* Header with OUC Branding */}
+          <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+            <h1 style={{
+              fontSize: '20px',
+              fontWeight: 'bold',
+              background: 'linear-gradient(135deg, #60a5fa, #1a1a5c)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+              marginBottom: '3px'
+            }}>
+              🏛️ OUC Access Control
+            </h1>
+            <p style={{
+              fontSize: '8px',
+              color: '#000033',
+              fontWeight: '600'
+            }}>
+              Facility Access Request System
+            </p>
+            
+            {/* User Data Status Indicator */}
+            {isLoadingUserData ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '3px',
+                marginTop: '3px',
+                padding: '3px 8px',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '3px',
+                color: '#1d4ed8',
+                fontSize: '8px',
+                fontWeight: '600'
+              }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  border: '1px solid transparent',
+                  borderTop: '1px solid #60a5fa',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                🔍 Searching for your existing data...
+              </div>
+            ) : userDataStatus === 'found' ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '3px',
+                marginTop: '3px',
+                padding: '3px 8px',
+                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                borderRadius: '3px',
+                color: '#15803d',
+                fontSize: '8px',
+                fontWeight: '600'
+              }}>
+                ✅ Welcome back! Your existing data has been loaded.
+              </div>
+            ) : userDataStatus === 'new' ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '3px',
+                marginTop: '3px',
+                padding: '3px 8px',
+                backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                border: '1px solid rgba(168, 85, 247, 0.3)',
+                borderRadius: '3px',
+                color: '#7c3aed',
+                fontSize: '8px',
+                fontWeight: '600'
+              }}>
+                🆕 Welcome! Please fill out your information below.
+              </div>
+            ) : null}
+            
+            <div style={{
+              width: '35px',
+              height: '3px',
+              background: 'linear-gradient(135deg, #60a5fa, #1a1a5c)',
+              margin: '3px auto',
+              borderRadius: '3px'
+            }}></div>
+          </div>
         
-        <div className="mb-6 flex justify-center">
-          <div 
-            ref={pictureFrameRef}
-            className="w-32 h-32 border border-gray-300 rounded-md overflow-hidden"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleImageDrop}
-          >
-            <Image
-              src={currentImage}
-              alt="User photo"
-              width={128}
-              height={128}
-              className="object-cover w-full h-full"
-            />
+          {/* Photo Section - KEEP ORIGINAL SIZE */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+            <div style={{ position: 'relative' }}>
+              <div 
+                ref={pictureFrameRef}
+                style={{
+                  width: '85px',
+                  height: '85px',
+                  border: '2px solid #60a5fa',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  transition: 'transform 0.3s ease',
+                  boxShadow: '0 5px 12px rgba(0, 0, 0, 0.15)'
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleImageDrop}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                <Image
+                  src={imageError ? '/default-profile.png' : (currentImage || '/PhotoID.jpeg')}
+                  alt="User photo"
+                  width={79}
+                  height={79}
+                  style={{
+                    objectFit: 'cover',
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '7px'
+                  }}
+                  onError={(e) => {
+                    console.error('❌ Image failed to load:', currentImage);
+                    if (!imageError) {
+                      // Only set error state once to prevent infinite loops
+                      setImageError(true);
+                    }
+                  }}
+                  onLoad={() => {
+                    console.log('✅ Image loaded successfully:', currentImage);
+                    // Reset error state when image loads successfully
+                    setImageError(false);
+                  }}
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
-        <table className="w-full border-separate border-spacing-y-2">
-          <tbody>
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right">Last Name:</label>
-              </td>
-              <td className="pl-2">
-                <input
-                  type="text"
-                  name="lastname"
-                  value={formData.lastname}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </td>
-            </tr>
+          {/* Photo Upload Instruction */}
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '8px',
+            fontSize: '10px',
+            color: '#666666',
+            fontStyle: 'italic'
+          }}>
+            💡 Drag & drop your photo above or click to select
+          </div>
 
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right w-full">First Name:</label>
-              </td>
-              <td className="pl-2">
-                <input
-                  type="text"
-                  name="firstname"
-                  value={formData.firstname}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </td>
-            </tr>
+          {/* Form Section */}
+          <div style={{
+            backgroundColor: 'rgba(0, 0, 51, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(0, 0, 51, 0.3)',
+            borderRadius: '3px',
+            padding: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{
+                width: '100%',
+                maxWidth: '321px',
+                margin: '0 auto',
+                borderCollapse: 'collapse'
+              }}>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>👤</span>Last Name:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="text"
+                        name="lastname"
+                        value={formData.lastname}
+                        onChange={handleInputChange}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        placeholder="Enter your last name"
+                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
+                      />
+                    </td>
+                  </tr>
 
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right w-full">Phone:</label>
-              </td>
-              <td className="pl-2">
-                <input
-                  type="text"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handlePhoneInput}
-                  placeholder="(XXX) XXX-XXXX"
-                  required
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </td>
-            </tr>
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>👤</span>First Name:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="text"
+                        name="firstname"
+                        value={formData.firstname}
+                        onChange={handleInputChange}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        placeholder="Enter your first name"
+                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
+                      />
+                    </td>
+                  </tr>
 
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right w-full">Email:</label>
-              </td>
-              <td className="pl-2">
-                <div>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      required
-                      readOnly={!session?.user?.isAdmin}
-                      className={`w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ${
-                        !session?.user?.isAdmin ? 'bg-gray-100 cursor-not-allowed' : ''
-                      }`}
-                    />
-                  </div>
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>📞</span>Phone:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="text"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handlePhoneInput}
+                        placeholder="(XXX) XXX-XXXX"
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
+                      />
+                    </td>
+                  </tr>
+
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>📧</span>Email:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        readOnly={!session?.user?.isAdmin}
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: !session?.user?.isAdmin ? 'rgba(240, 240, 240, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        placeholder="your.email@example.com"
+                        onFocus={(e) => session?.user?.isAdmin && (e.target.style.borderColor = '#60a5fa')}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
+                      />
+                    </td>
+                  </tr>
+
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>🆔</span>User ID:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="text"
+                        name="userid"
+                        value={formData.userid}
+                        onChange={handleInputChange}
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        placeholder="Create a unique user ID"
+                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
+                      />
+                    </td>
+                  </tr>
+
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>📱</span>Device ID:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="text"
+                        name="DeviceID"
+                        value={formData.DeviceID}
+                        onChange={handleInputChange}
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        placeholder="Enter your mobile device ID"
+                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
+                      />
+                    </td>
+                  </tr>
+
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>📖</span>Digital Key Guide:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <div style={{
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                        borderRadius: '3px',
+                        padding: '8px'
+                      }}>
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            window.open(
+                              '/IsonasMobileAppGuide.pdf',
+                              'pdf-popup',
+                              'width=900,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no'
+                            );
+                          }}
+                          style={{
+                            color: '#1d4ed8',
+                            textDecoration: 'none',
+                            fontWeight: '600',
+                            fontSize: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <span>📱</span>
+                          Download Mobile App Setup Guide (PDF)
+                          <span>↗️</span>
+                        </a>
+                        <p style={{
+                          fontSize: '8px',
+                          marginTop: '3px',
+                          color: 'rgba(29, 78, 216, 0.75)',
+                          margin: '3px 0 0 0'
+                        }}>
+                          📋 Step-by-step instructions for obtaining your Device ID
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>✅</span>Email Validated:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="text"
+                        name="EmailValidationDate"
+                        value={formData.EmailValidationDate ? formatDate(formData.EmailValidationDate) : ''}
+                        disabled
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: 'rgba(240, 240, 240, 0.9)',
+                          color: '#666'
+                        }}
+                        placeholder="Not yet validated"
+                      />
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style={{
+                      width: '72px',
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: '#000033',
+                      padding: '3px 8px',
+                      fontSize: '9px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                        <span>📅</span>Request Date:
+                      </div>
+                    </td>
+                    <td style={{ padding: '3px 8px' }}>
+                      <input
+                        type="text"
+                        name="RequestDate"
+                        value={formatDate(formData.RequestDate)}
+                        disabled
+                        style={{
+                          width: '100%',
+                          padding: '3px',
+                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                          borderRadius: '3px',
+                          fontSize: '12px',
+                          backgroundColor: 'rgba(240, 240, 240, 0.9)',
+                          color: '#666'
+                        }}
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Button Section */}
+          <div style={{
+            backgroundColor: 'rgba(0, 0, 51, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(0, 0, 51, 0.3)',
+            borderRadius: '3px',
+            padding: '8px'
+          }}>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '3px'
+            }}>
+              <button
+                onClick={handleNew}
+                style={{
+                  padding: '5px 9px',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4b5563';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#6b7280';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <span>🆕</span>New
+              </button>
+              <button
+                onClick={handleSave}
+                style={{
+                  padding: '5px 9px',
+                  backgroundColor: '#000033',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1a1a5c';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#000033';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <span>💾</span>Save
+              </button>
+              {session?.user?.isAdmin && formData.EmpID && (
+                <button
+                  onClick={handleDelete}
+                  title="Delete this record"
+                  style={{
+                    padding: '8px 18px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#b91c1c';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#dc2626';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <span>🗑️</span>Delete
+                </button>
+              )}
+              <button
+                onClick={handlePrevious}
+                disabled={!canNavigate || currentRecordIndex <= 0}
+                style={{
+                  padding: '8px 18px',
+                  backgroundColor: (canNavigate && currentRecordIndex > 0) ? '#1a1a5c' : '#d1d5db',
+                  color: (canNavigate && currentRecordIndex > 0) ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: (canNavigate && currentRecordIndex > 0) ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseOver={(e) => {
+                  if (canNavigate && currentRecordIndex > 0) {
+                    e.currentTarget.style.backgroundColor = '#000033';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (canNavigate && currentRecordIndex > 0) {
+                    e.currentTarget.style.backgroundColor = '#1a1a5c';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <span>⬅️</span>Prev
+              </button>
+              <button
+                onClick={handleNext}
+                disabled={!canNavigate || currentRecordIndex >= allRecords.length - 1}
+                style={{
+                  padding: '8px 18px',
+                  backgroundColor: (canNavigate && currentRecordIndex < allRecords.length - 1) ? '#1a1a5c' : '#d1d5db',
+                  color: (canNavigate && currentRecordIndex < allRecords.length - 1) ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: (canNavigate && currentRecordIndex < allRecords.length - 1) ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseOver={(e) => {
+                  if (canNavigate && currentRecordIndex < allRecords.length - 1) {
+                    e.currentTarget.style.backgroundColor = '#000033';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (canNavigate && currentRecordIndex < allRecords.length - 1) {
+                    e.currentTarget.style.backgroundColor = '#1a1a5c';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                Next<span>➡️</span>
+              </button>
+              <button
+                onClick={handleSearch}
+                disabled={!isSearchEnabled}
+                title={!isSearchEnabled ? "Only available for admin users" : "Search records"}
+                style={{
+                  padding: '5px 9px',
+                  backgroundColor: isSearchEnabled ? '#059669' : '#d1d5db',
+                  color: isSearchEnabled ? 'white' : '#6b7280',
+                  border: 'none',
+                  borderRadius: '5px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: isSearchEnabled ? 'pointer' : 'not-allowed',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px'
+                }}
+                onMouseOver={(e) => {
+                  if (isSearchEnabled) {
+                    e.currentTarget.style.backgroundColor = '#047857';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (isSearchEnabled) {
+                    e.currentTarget.style.backgroundColor = '#059669';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <span>🔍</span>
+                {isSearchEnabled ? 'Search' : 'Admin Only'}
+              </button>
+              <button
+                onClick={handleExit}
+                type="button"
+                style={{
+                  padding: '8px 18px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#d97706';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f59e0b';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <span>🚪</span>Exit
+              </button>
+            </div>
+
+            {/* Record Counter */}
+            {allRecords.length > 0 && (
+              <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                <div style={{
+                  backgroundColor: '#60a5fa',
+                  color: 'white',
+                  padding: '3px 8px',
+                  borderRadius: '8px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}>
+                  <span>📊</span>
+                  Record {currentRecordIndex + 1} of {allRecords.length}
                 </div>
-              </td>
-            </tr>
-
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right w-full">User ID:</label>
-              </td>
-              <td className="pl-2">
-                <input
-                  type="text"
-                  name="userid"
-                  value={formData.userid}
-                  onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </td>
-            </tr>
-
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right w-full">Device ID:</label>
-              </td>
-              <td className="pl-2">
-                <input
-                  type="text"
-                  name="DeviceID"
-                  value={formData.DeviceID}
-                  onChange={handleInputChange}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </td>
-            </tr>
-
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right w-full">Email Validated on:</label>
-              </td>
-              <td className="pl-2">
-                <input
-                  type="text"
-                  name="EmailValidationDate"
-                  value={formData.EmailValidationDate ? formatDate(formData.EmailValidationDate) : ''}
-                  disabled
-                  className="w-full rounded-md border-gray-300 bg-gray-100 shadow-sm"
-                />
-              </td>
-            </tr>
-
-            <tr>
-              <td className="w-[200px] pr-4">
-                <label className="block text-sm font-medium text-gray-700 text-right w-full">Date of Request:</label>
-              </td>
-              <td className="pl-2">
-                <input
-                  type="text"
-                  name="RequestDate"
-                  value={formatDate(formData.RequestDate)}
-                  disabled
-                  className="w-full rounded-md border-gray-300 bg-gray-100 shadow-sm"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div className="mt-6 flex justify-between space-x-4">
-          <button
-            onClick={handleNew}
-            className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-          >
-            New
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Save
-          </button>
-          <button
-            onClick={handleSearch}
-            disabled={!isSearchEnabled}
-            title={!isSearchEnabled ? "Only available for admin users" : "Search records"}
-            className={`px-4 py-2 text-white rounded ${
-              isSearchEnabled ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {isSearchEnabled ? 'Search' : 'Admin Only'}
-          </button>
-          {session?.user?.isAdmin && formData.EmpID && (
-            <button
-              onClick={handleDelete}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              title="Delete this record"
-            >
-              Delete
-            </button>
-          )}
-          <button
-            onClick={handlePrevious}
-            disabled={!canNavigate || currentRecordIndex <= 0}
-            className={`px-4 py-2 text-white rounded ${
-              canNavigate && currentRecordIndex > 0
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {'<<'}
-          </button>
-          <button
-            onClick={handleNext}
-            disabled={!canNavigate || currentRecordIndex >= allRecords.length - 1}
-            className={`px-4 py-2 text-white rounded ${
-              canNavigate && currentRecordIndex < allRecords.length - 1
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {'>>'}
-          </button>
-          <button
-            onClick={handleExit}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-            type="button"
-          >
-            Exit
-          </button>
-        </div>
-
-        {/* Add record counter if we have multiple records */}
-        {allRecords.length > 0 && (
-          <div className="mt-4 text-center text-sm text-gray-600">
-            Record {currentRecordIndex + 1} of {allRecords.length}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
