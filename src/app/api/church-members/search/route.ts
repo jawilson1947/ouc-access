@@ -22,8 +22,9 @@ export async function GET(request: Request) {
 
     if (searchCriteria.email) {
       console.log('🔍 Email search for:', searchCriteria.email);
-      query += ' AND email = ?';
-      params.push(searchCriteria.email);
+      // Search both email and gmail fields for email queries
+      query += ' AND (email = ? OR gmail = ?)';
+      params.push(searchCriteria.email, searchCriteria.email);
     }
 
     if (searchCriteria.phone) {
