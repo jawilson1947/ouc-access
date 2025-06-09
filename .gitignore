@@ -48,3 +48,9 @@ next-env.d.ts
 # Temporary files
 *.txt
 *.log
+
+# Secret files (API keys, sensitive data)
+sendgrid.env
+sendmail.js
+*.env
+!.env.example 

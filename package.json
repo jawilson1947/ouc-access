@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "daisyui": "^5.0.43",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.0.4"
   }

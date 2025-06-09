@@ -3,47 +3,54 @@ const { parse } = require('url');
 const next = require('next');
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
-const port = 3000;
+// For staging server, bind to all interfaces (0.0.0.0) not localhost
+const hostname = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+const port = parseInt(process.env.PORT || '3000', 10);
 
-const app = next({ dev, hostname, port });
+console.log(`Starting server in ${dev ? 'development' : 'production'} mode`);
+console.log(`Binding to ${hostname}:${port}`);
+
+const app = next({ dev, hostname: 'localhost', port }); // Next.js should use localhost internally
 const handle = app.getRequestHandler();
 
-app.prepare().then(() => {
-  createServer(async (req, res) => {
-    try {
-      const parsedUrl = parse(req.url, true);
-      
-      // Set CORS headers
-      res.setHeader('Access-Control-Allow-Credentials', true);
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-      res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-      );
+app.prepare()
+  .then(() => {
+    createServer(async (req, res) => {
+      try {
+        const parsedUrl = parse(req.url, true);
+        
+        // Only set minimal CORS headers to avoid conflicts with NextAuth
+        if (req.method === 'OPTIONS') {
+          res.writeHead(200, {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          });
+          res.end();
+          return;
+        }
 
-      // Handle preflight requests
-      if (req.method === 'OPTIONS') {
-        res.writeHead(200);
-        res.end();
-        return;
+        // Set reasonable timeouts
+        req.setTimeout(60000); // 1 minute
+        res.setTimeout(60000); // 1 minute
+
+        await handle(req, res, parsedUrl);
+      } catch (err) {
+        console.error('Error occurred handling', req.url, err);
+        res.statusCode = 500;
+        res.end('Internal Server Error');
       }
-
-      // Increase the server timeout
-      req.setTimeout(300000); // 5 minutes
-      res.setTimeout(300000); // 5 minutes
-
-      await handle(req, res, parsedUrl);
-    } catch (err) {
-      console.error('Error occurred handling', req.url, err);
-      res.statusCode = 500;
-      res.end('Internal Server Error');
-    }
+    })
+    .setTimeout(60000) // 1 minute server timeout
+    .listen(port, hostname, (err) => {
+      if (err) {
+        console.error('Server failed to start:', err);
+        process.exit(1);
+      }
+      console.log(`> Ready on http://${hostname}:${port}`);
+    });
   })
-  .setTimeout(300000) // 5 minutes server timeout
-  .listen(port, hostname, (err) => {
-    if (err) throw err;
-    console.log(`> Ready on http://${hostname}:${port}`);
-  });
-}); 
+  .catch((err) => {
+    console.error('Failed to prepare Next.js app:', err);
+    process.exit(1);
+  }); 

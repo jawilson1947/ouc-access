@@ -108,7 +108,7 @@ CREATE TABLE ChurchMembers (
   firstname varchar(50) NOT NULL,
   phone varchar(50) NOT NULL,
   email varchar(80) NOT NULL,
-  Picture_Url varchar(255),
+  PictureUrl varchar(255),
   email_validation_date datetime DEFAULT NULL,
   request_date datetime NOT NULL,
   device_id varchar(50) DEFAULT NULL,
@@ -118,11 +118,3 @@ CREATE TABLE ChurchMembers (
   updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
-
-## Security Considerations
-
-- All database credentials are stored in environment variables
-- Google OAuth is used for secure authentication
-- Form inputs are validated and sanitized
-- SQL queries use parameterized statements to prevent injection
-- Sensitive data is not exposed in client-side code 

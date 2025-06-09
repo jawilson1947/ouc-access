@@ -1,225 +1,64 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/config';
-import { createPool } from '@/lib/db';
-import type { ResultSetHeader } from 'mysql2';
+import { createChurchMember, updateChurchMember } from '@/lib/services/churchMembers';
+import { DatabaseError } from '@/lib/db';
 
-const pool = createPool();
-
-export async function GET(req: Request) {
+export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const email = searchParams.get('email');
-    const userId = searchParams.get('userId');
-    const EmpID = searchParams.get('EmpID');
-    const lastname = searchParams.get('lastname');
-
-    // If user is not admin, they can only search for their own email
-    if (!session.user.isAdmin && email !== session.user.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const connection = await pool.getConnection();
-    try {
-      let query = `SELECT 
-        EmpID,
-        lastname,
-        firstname,
-        phone,
-        email,
-        Picture_Url,
-        EmailValidationDate,
-        RequestDate,
-        DeviceID,
-        userid,
-        gmail
-        FROM ChurchMembers`;
-      const params = [];
-
-      // If user is not admin, force email filter
-      if (!session.user.isAdmin) {
-        query += ' WHERE email = ?';
-        params.push(email);
-      } else {
-        // Admin can use all filters
-        if (lastname !== '*') {
-          query += ' WHERE 1=1';
-          if (email) {
-            query += ' AND email = ?';
-            params.push(email);
-          }
-          if (userId) {
-            query += ' AND userid = ?';
-            params.push(userId);
-          }
-          if (EmpID) {
-            query += ' AND EmpID = ?';
-            params.push(EmpID);
-          }
-          if (lastname) {
-            query += ' AND lastname = ?';
-            params.push(lastname);
-          }
-        }
-      }
-
-      // Add ORDER BY clause
-      query += ' ORDER BY lastname, firstname';
-
-      const [rows] = await connection.query(query, params);
-      return NextResponse.json({ data: rows });
-    } finally {
-      connection.release();
-    }
+    const data = await request.json();
+    console.log('📝 Creating new church member:', data);
+    
+    const EmpID = await createChurchMember(data);
+    
+    return NextResponse.json({
+      success: true,
+      EmpID,
+      message: 'Church member created successfully'
+    });
   } catch (error) {
-    console.error('Error in GET /api/church-members:', error);
+    console.error('❌ Error creating church member:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      {
+        success: false,
+        error: error instanceof DatabaseError ? error.message : 'Failed to create church member'
+      },
       { status: 500 }
     );
   }
 }
 
-export async function POST(req: Request) {
+export async function PUT(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const data = await req.json();
-    const connection = await pool.getConnection();
-
-    try {
-      await connection.query('START TRANSACTION');
-
-      const [result] = await connection.query<ResultSetHeader>(
-        `INSERT INTO ChurchMembers 
-        (lastname, firstname, phone, email, Picture_Url, 
-        EmailValidationDate, RequestDate, DeviceID, userid, gmail) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          data.lastname,
-          data.firstname,
-          data.phone,
-          data.email,
-          data.Picture_Url,
-          data.EmailValidationDate,
-          data.RequestDate,
-          data.DeviceID,
-          data.userid,
-          data.gmail
-        ]
-      );
-
-      await connection.query('COMMIT');
-      return NextResponse.json({ success: true, EmpID: result.insertId });
-    } catch (error) {
-      await connection.query('ROLLBACK');
-      throw error;
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error('Error in POST /api/church-members:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const data = await req.json();
+    const data = await request.json();
+    console.log('📝 Updating church member:', data);
+    
     if (!data.EmpID) {
       return NextResponse.json(
-        { error: 'EmpID is required' },
+        { success: false, error: 'EmpID is required for updates' },
         { status: 400 }
       );
     }
-
-    const connection = await pool.getConnection();
-    try {
-      await connection.query('START TRANSACTION');
-
-      await connection.query(
-        `UPDATE ChurchMembers SET 
-        lastname = ?, firstname = ?, phone = ?, 
-        email = ?, Picture_Url = ?, EmailValidationDate = ?, 
-        RequestDate = ?, DeviceID = ?, userid = ?, gmail = ? 
-        WHERE EmpID = ?`,
-        [
-          data.lastname,
-          data.firstname,
-          data.phone,
-          data.email,
-          data.Picture_Url,
-          data.EmailValidationDate,
-          data.RequestDate,
-          data.DeviceID,
-          data.userid,
-          data.gmail,
-          data.EmpID
-        ]
-      );
-
-      await connection.query('COMMIT');
-      return NextResponse.json({ success: true });
-    } catch (error) {
-      await connection.query('ROLLBACK');
-      throw error;
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error('Error in PUT /api/church-members:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const EmpID = searchParams.get('EmpID');
-
-    if (!EmpID) {
+    
+    const success = await updateChurchMember(data);
+    
+    if (success) {
+      return NextResponse.json({
+        success: true,
+        message: 'Church member updated successfully'
+      });
+    } else {
       return NextResponse.json(
-        { error: 'EmpID is required' },
-        { status: 400 }
+        { success: false, error: 'Failed to update church member' },
+        { status: 500 }
       );
     }
-
-    const connection = await pool.getConnection();
-    try {
-      await connection.query('DELETE FROM ChurchMembers WHERE EmpID = ?', [EmpID]);
-      return NextResponse.json({ success: true });
-    } finally {
-      connection.release();
-    }
   } catch (error) {
-    console.error('Error in DELETE /api/church-members:', error);
+    console.error('❌ Error updating church member:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      {
+        success: false,
+        error: error instanceof DatabaseError ? error.message : 'Failed to update church member'
+      },
       { status: 500 }
     );
   }
-}
+} 

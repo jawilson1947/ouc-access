@@ -61,14 +61,28 @@ export const authOptions: AuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Handle redirects
+      // Always redirect to access-request after successful authentication
+      if (url === baseUrl || url === `${baseUrl}/`) {
+        return `${baseUrl}/access-request`;
+      }
+      
+      // If url is the callback URL for access-request, use it
+      if (url.includes('/access-request')) {
+        return url;
+      }
+      
+      // Handle relative URLs
       if (url.startsWith('/')) {
         return `${baseUrl}${url}`;
       }
+      
+      // Handle absolute URLs starting with baseUrl
       if (url.startsWith(baseUrl)) {
         return url;
       }
-      return baseUrl;
+      
+      // Default fallback to access-request instead of baseUrl
+      return `${baseUrl}/access-request`;
     },
   },
   session: {

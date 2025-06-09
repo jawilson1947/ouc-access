@@ -4,17 +4,17 @@ export interface ChurchMember {
   firstname: string;
   phone: string;
   email: string;
-  Picture_Url?: string | null;
-  EmailValidationDate?: Date | null;
-  RequestDate: Date;
+  PictureUrl?: string | null;
+  EmailValidationDate?: Date | string | null;
+  RequestDate: Date | string;
   DeviceID?: string | null;
   userid?: string | null;
   gmail?: string | null;
-  created_at?: Date;
-  updated_at?: Date;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
-export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpID' | 'created_at' | 'updated_at'> {}
+export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpID' | 'createdAt' | 'updatedAt'> {}
 export interface UpdateChurchMemberInput extends Partial<ChurchMember> {
   EmpID: number;
 }

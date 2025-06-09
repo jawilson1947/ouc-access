@@ -16,19 +16,15 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
-    domains: ['localhost'],
+    domains: ['localhost', 'access.ouctv.org', 'ouctv.org'],
     unoptimized: true
   },
   webpack: (config, { isServer }) => {
-    // Ignore system files and temp files
+    // Ignore system files and temp files (cross-platform)
     config.watchOptions = {
       ignored: [
         '**/.git/**',
         '**/node_modules/**',
-        'C:\\DumpStack.log.tmp',
-        'C:\\hiberfil.sys',
-        'C:\\pagefile.sys',
-        'C:\\swapfile.sys',
         '**/DumpStack.log.tmp',
         '**/hiberfil.sys',
         '**/pagefile.sys',
