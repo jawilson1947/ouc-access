@@ -17,8 +17,12 @@ export default function AccessRequestPage() {
 
   // Render the form immediately without any loading state
   return (
-    <div>
-      <div className="min-h-screen bg-gray-100 py-6" style={{ paddingBottom: '80px' }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#000033',
+      paddingBottom: '80px' 
+    }}>
+      <div className="py-6">
         <AccessRequestForm />
       </div>
       

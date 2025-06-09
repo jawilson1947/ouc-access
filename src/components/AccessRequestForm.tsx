@@ -681,7 +681,7 @@ export default function AccessRequestForm() {
 
   return (
     <div className="min-h-screen" style={{ 
-      background: 'linear-gradient(135deg, #000033 0%, #1a1a5c 100%)',
+      backgroundColor: '#000033',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -1005,7 +1005,7 @@ export default function AccessRequestForm() {
                       width: '72px',
                       textAlign: 'right',
                       fontWeight: '600',
-                      color: '#000033',
+                      color: '#ffffff',
                       padding: '3px 8px',
                       fontSize: '9px'
                     }}>
