@@ -16,52 +16,76 @@ export async function GET(request: Request) {
 
     console.log('🔍 Search criteria:', searchCriteria);
 
-    // Direct database query for email search
+    // Build dynamic query based on search criteria
+    let query = 'SELECT * FROM ChurchMembers WHERE 1=1';
+    const params: any[] = [];
+
     if (searchCriteria.email) {
-      console.log('🔍 Direct email search for:', searchCriteria.email);
-      
-      const members = await executeQuery<ChurchMember[]>(
-        'SELECT * FROM ChurchMembers WHERE email = ? ORDER BY lastname, firstname',
-        [searchCriteria.email]
-      );
-      
-      console.log('✅ Found members:', members.length);
-      console.log('📋 Database result:', JSON.stringify(members, null, 2));
-      
-      if (members.length > 0) {
-        const firstMember = members[0];
-        console.log('🔍 Member object keys:', Object.keys(firstMember));
-        console.log('🔍 Member field values:');
-        Object.entries(firstMember).forEach(([key, value]) => {
-          console.log(`  ${key}: ${value}`);
-        });
-      }
-      
-      // Map database field names to expected interface field names
-      const mappedMembers = members.map(member => {
-        const dbMember = member as any; // Database returns uppercase field names
-        return {
-          ...member,
-          lastname: dbMember.Lastname || member.lastname,
-          firstname: dbMember.Firstname || member.firstname,
-          phone: dbMember.Phone || member.phone
-        };
-      });
-      
-      console.log('🔄 Mapped members:', JSON.stringify(mappedMembers, null, 2));
-      
-      return NextResponse.json({ 
-        success: true, 
-        data: mappedMembers,
-        total: mappedMembers.length
-      });
+      console.log('🔍 Email search for:', searchCriteria.email);
+      query += ' AND email = ?';
+      params.push(searchCriteria.email);
     }
 
-    // If no email search, return empty results
+    if (searchCriteria.phone) {
+      console.log('🔍 Phone search for:', searchCriteria.phone);
+      query += ' AND Phone = ?';
+      params.push(searchCriteria.phone);
+    }
+
+    if (searchCriteria.userId) {
+      console.log('🔍 User ID search for:', searchCriteria.userId);
+      query += ' AND userid = ?';
+      params.push(searchCriteria.userId);
+    }
+
+    // Handle lastname and firstname searches with wildcard support
+    if (searchCriteria.lastname) {
+      if (searchCriteria.lastname === '*') {
+        console.log('🔍 Wildcard search - returning all records');
+        // Don't add any lastname constraint for wildcard search
+      } else {
+        console.log('🔍 Last name search for:', searchCriteria.lastname);
+        query += ' AND Lastname LIKE ?';
+        params.push(`%${searchCriteria.lastname}%`);
+      }
+    }
+
+    if (searchCriteria.firstname) {
+      console.log('🔍 First name search for:', searchCriteria.firstname);
+      query += ' AND Firstname LIKE ?';
+      params.push(`%${searchCriteria.firstname}%`);
+    }
+
+    // Add ordering
+    query += ' ORDER BY lastname, firstname';
+
+    console.log('🔍 Final query:', query);
+    console.log('🔍 Query params:', params);
+
+    const members = await executeQuery<ChurchMember[]>(query, params);
+    
+    console.log('✅ Found members:', members.length);
+    
+    if (members.length > 0) {
+      const firstMember = members[0];
+      console.log('🔍 Sample member keys:', Object.keys(firstMember));
+    }
+    
+    // Map database field names to expected interface field names
+    const mappedMembers = members.map(member => {
+      const dbMember = member as any; // Database returns uppercase field names
+      return {
+        ...member,
+        lastname: dbMember.Lastname || member.lastname,
+        firstname: dbMember.Firstname || member.firstname,
+        phone: dbMember.Phone || member.phone
+      };
+    });
+    
     return NextResponse.json({ 
       success: true, 
-      data: [],
-      total: 0
+      data: mappedMembers,
+      total: mappedMembers.length
     });
     
   } catch (error) {
