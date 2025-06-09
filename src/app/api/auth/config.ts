@@ -9,6 +9,8 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
 const ADMIN_EMAIL = 'jawilson1947@gmail.com';
 
 export const authOptions: AuthOptions = {
+  // Set base URL explicitly for production
+  url: process.env.NEXTAUTH_URL || (typeof window !== 'undefined' ? window.location.origin : undefined),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
