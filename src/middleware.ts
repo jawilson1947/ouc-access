@@ -20,6 +20,11 @@ export default withAuth(
       }
     }
     
+    // Allow upload API (it has its own authentication)
+    if (pathname.startsWith('/api/upload')) {
+      return NextResponse.next();
+    }
+    
     return NextResponse.next();
   },
   {
@@ -40,6 +45,11 @@ export default withAuth(
           if (email) {
             return true;
           }
+        }
+        
+        // Allow upload API (it has its own authentication)
+        if (pathname.startsWith('/api/upload')) {
+          return true;
         }
         
         return !!token;

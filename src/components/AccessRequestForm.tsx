@@ -90,6 +90,9 @@ export default function AccessRequestForm() {
   // Add state for handling image errors
   const [imageError, setImageError] = useState(false);
 
+  // Add ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Debug currentImage changes
   useEffect(() => {
     console.log('🖼️ Current image state changed to:', currentImage);
@@ -285,17 +288,52 @@ export default function AccessRequestForm() {
 
   const handleImageDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
-      setFormData(prev => ({
-        ...prev,
-        picture: file
-      }));
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      const file = files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      setFormData(prev => ({ ...prev, picture: file }));
+      
       const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setCurrentImage(e.target.result as string);
-          setImageError(false);
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setCurrentImage(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle photo frame click - trigger file input
+  const handlePhotoFrameClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file input change
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      const file = files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      setFormData(prev => ({ ...prev, picture: file }));
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setCurrentImage(event.target.result as string);
         }
       };
       reader.readAsDataURL(file);
@@ -470,17 +508,48 @@ export default function AccessRequestForm() {
       // Upload picture if exists
       let PictureUrl = formData.PictureUrl;
       if (formData.picture) {
+        console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
+        
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.picture);
+        
+        console.log('📸 Uploading photo...', {
+          fileName: formData.picture.name,
+          fileSize: formData.picture.size,
+          fileType: formData.picture.type
+        });
+        
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           body: uploadFormData
         });
+        
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload picture');
+          const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' }));
+          console.error('📸 Upload failed:', {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText,
+            error: errorData
+          });
+          throw new Error(`Failed to upload picture: ${errorData.error || uploadResponse.statusText}`);
         }
+        
         const { url } = await uploadResponse.json();
+        console.log('📸 Photo uploaded successfully:', url);
         PictureUrl = url;
+        
+        // Add a small delay after photo upload to allow webpack to stabilize
+        console.log('📸 Photo uploaded, waiting briefly for system stability...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Trigger a cache refresh to prevent webpack module resolution issues
+        try {
+          console.log('🔄 Triggering cache refresh after photo upload...');
+          // Make a small request to ensure modules are properly loaded
+          await fetch('/api/auth/session', { method: 'GET' });
+        } catch (refreshError) {
+          console.warn('⚠️ Cache refresh failed, but continuing...', refreshError);
+        }
       }
 
       // Format the date in MySQL format if it's in ISO format
@@ -514,16 +583,44 @@ export default function AccessRequestForm() {
       }
 
       const method = formData.EmpID === 0 ? 'POST' : 'PUT';
-      const response = await fetch('/api/church-members', {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData),
-      });
+      
+      // Retry logic for database operations
+      let response;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`💾 Attempting to save record (attempt ${retryCount + 1}/${maxRetries})...`);
+          response = await fetch('/api/church-members', {
+            method,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData),
+          });
 
-      if (!response.ok) {
-        throw new Error('Save failed');
+          if (response.ok) {
+            console.log('✅ Record saved successfully');
+            break; // Success, exit retry loop
+          } else {
+            throw new Error(`Save failed with status: ${response.status}`);
+          }
+        } catch (error: any) {
+          retryCount++;
+          console.warn(`❌ Save attempt ${retryCount} failed:`, error.message);
+          
+          if (retryCount < maxRetries) {
+            console.log(`🔄 Retrying in ${retryCount * 1000}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+          } else {
+            throw error; // Final attempt failed, throw the error
+          }
+        }
+      }
+
+      if (!response || !response.ok) {
+        throw new Error('All save attempts failed');
       }
 
       const result = await response.json();
@@ -540,7 +637,7 @@ export default function AccessRequestForm() {
       // Send email notification with enhanced feedback
       let emailStatus = 'unknown';
       try {
-        console.log('Attempting to send email notification...');
+        console.log('📧 Attempting to send email notification...');
         const emailResponse = await fetch('/api/send-email', {
           method: 'POST',
           headers: {
@@ -558,11 +655,16 @@ export default function AccessRequestForm() {
         const emailResult = await emailResponse.json();
         
         if (emailResponse.ok) {
-          emailStatus = 'sent';
-          console.log('✅ Email notification sent successfully:', emailResult.message);
+          if (emailResult.success) {
+            emailStatus = 'sent';
+            console.log('✅ Email notification sent successfully:', emailResult.message);
+          } else {
+            emailStatus = 'failed';
+            console.warn('⚠️ Email notification failed:', emailResult.message || emailResult.details);
+          }
         } else {
           emailStatus = 'failed';
-          console.warn('⚠️ Email notification failed:', emailResult.error);
+          console.warn('⚠️ Email notification failed:', emailResult.error || emailResult.message);
           if (emailResult.configIssues) {
             console.warn('📧 Email configuration issues:', emailResult.configIssues);
           }
@@ -585,8 +687,8 @@ export default function AccessRequestForm() {
       alert(successMessage);
       
     } catch (error) {
-      console.error('Save error:', error);
-      alert('Failed to save record');
+      console.error('💥 Save error:', error);
+      alert(`Failed to save record: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
@@ -816,6 +918,15 @@ export default function AccessRequestForm() {
           {/* Photo Section - KEEP ORIGINAL SIZE */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
             <div style={{ position: 'relative' }}>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileInputChange}
+                style={{ display: 'none' }}
+              />
+              
               <div 
                 ref={pictureFrameRef}
                 style={{
@@ -833,6 +944,7 @@ export default function AccessRequestForm() {
                 }}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={handleImageDrop}
+                onClick={handlePhotoFrameClick}
                 onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
@@ -872,7 +984,7 @@ export default function AccessRequestForm() {
             color: '#666666',
             fontStyle: 'italic'
           }}>
-            💡 Drag & drop your photo above or click to select
+            💡 Click photo frame to select or drag & drop your image
           </div>
 
           {/* Form Section */}

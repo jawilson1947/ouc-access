@@ -89,9 +89,10 @@ export async function POST(req: Request) {
     if (!SENDGRID_API_KEY) {
       console.error('SendGrid API key not configured');
       return NextResponse.json({ 
-        error: 'Email service not configured',
+        success: false, 
+        message: 'Email service not configured - notification skipped',
         details: 'SENDGRID_API_KEY or SEND_GRID_API_KEY not found in environment variables'
-      }, { status: 500 });
+      }, { status: 200 }); // Return 200 instead of 500 to not break the main flow
     }
 
     try {
@@ -106,10 +107,12 @@ export async function POST(req: Request) {
     } catch (error: any) {
       console.error('SendGrid error:', error.response?.body || error.message || error);
       
+      // Return success but with warning so main functionality continues
       return NextResponse.json({ 
-        error: 'Failed to send email notification',
+        success: false,
+        message: 'Email notification failed but record was saved successfully',
         details: error.response?.body?.errors?.[0]?.message || error.message || 'Unknown SendGrid error'
-      }, { status: 500 });
+      }, { status: 200 }); // Return 200 instead of 500 to not break the main flow
     }
   } catch (error: any) {
     console.error('General email error:', error.message || error);
