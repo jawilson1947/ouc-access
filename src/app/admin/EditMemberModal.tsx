@@ -13,12 +13,12 @@ interface EditMemberModalProps {
 export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProps) {
   const { updateMember, loading, error } = useChurchMembers();
   const [formData, setFormData] = useState<UpdateChurchMemberInput>({
-    EmpID: member.EmpID,
+    EmpID: (member.EmpID ?? 0) as number,
     lastname: member.lastname,
     firstname: member.firstname,
     phone: member.phone,
     email: member.email,
-    Picture_Url: member.Picture_Url,
+    PictureUrl: member.PictureUrl,
     EmailValidationDate: member.EmailValidationDate,
     RequestDate: member.RequestDate,
     DeviceID: member.DeviceID || undefined,
@@ -127,17 +127,7 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Department ID</label>
-            <input
-              type="number"
-              name="DeptId"
-              value={formData.DeptId || ''}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-
+  
           <div className="flex justify-end space-x-2 pt-4">
             <button
               type="button"

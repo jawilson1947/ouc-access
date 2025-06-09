@@ -13,13 +13,16 @@ interface EditMemberModalProps {
 export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProps) {
   const { updateMember, loading, error } = useChurchMembers();
   const [formData, setFormData] = useState<UpdateChurchMemberInput>({
-    EmpID: member.EmpID as number,
+    EmpID: (member.EmpID ?? 0) as number,
     lastname: member.lastname,
     firstname: member.firstname,
     phone: member.phone,
     email: member.email,
-    device_id: member.device_id || undefined,
-    user_id: member.user_id || undefined,
+    PictureUrl: member.PictureUrl,
+    EmailValidationDate: member.EmailValidationDate,
+    RequestDate: member.RequestDate,
+    DeviceID: member.DeviceID || undefined,
+    userid: member.userid || undefined,
     gmail: member.gmail || undefined,
   });
 
@@ -117,19 +120,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <label className="block text-sm font-medium text-gray-700">Device ID</label>
             <input
               type="text"
-              name="device_id"
-              value={formData.device_id || ''}
-              onChange={handleInputChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">User ID</label>
-            <input
-              type="number"
-              name="user_id"
-              value={formData.user_id || ''}
+              name="DeviceID"
+              value={formData.DeviceID || ''}
               onChange={handleInputChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
