@@ -10,7 +10,7 @@ const port = parseInt(process.env.PORT || '3000', 10);
 console.log(`Starting server in ${dev ? 'development' : 'production'} mode`);
 console.log(`Binding to ${hostname}:${port}`);
 
-const app = next({ dev, hostname: 'localhost', port }); // Next.js should use localhost internally
+const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare()
