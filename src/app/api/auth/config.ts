@@ -133,7 +133,7 @@ export const authOptions: AuthOptions = {
         // Ensure session has all user info from token
         session.user.email = token.email;
         session.user.name = token.name;
-        session.user.isAdmin = token.isAdmin;
+        session.user.isAdmin = token.isAdmin || false;
         
         console.log('🎟️ Session Callback - Final session user:', {
           email: session.user.email,
