@@ -39,59 +39,40 @@ export default function LoginPage() {
       setIsLoading(true);
       setEmailError('');
       console.log('Attempting to authenticate with email:', email);
+      console.log('About to call signIn with credentials provider');
       
       // Store the email in localStorage for use in the access-request form
       localStorage.setItem('nonGmailEmail', email);
       
-      // Use fetch to call NextAuth directly, avoiding client-side URL construction
-      const response = await fetch('/api/auth/callback/credentials', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          email: email,
-          redirect: 'false',
-          callbackUrl: '/access-request'
-        }),
+      // Use NextAuth's signIn method for credentials authentication
+      const result = await signIn('credentials', {
+        email: email,
+        redirect: false,
+        callbackUrl: '/access-request'
       });
       
-      console.log('Auth response status:', response.status);
+      console.log('NextAuth signIn result:', {
+        result,
+        ok: result?.ok,
+        error: result?.error,
+        status: result?.status,
+        url: result?.url
+      });
       
-      if (response.ok) {
+      if (result?.ok && !result?.error) {
         console.log('Authentication successful, redirecting to access-request');
         // Force a full page redirect to ensure session is properly loaded
         window.location.href = '/access-request?t=' + Date.now();
       } else {
-        console.error('Authentication failed:', response.statusText);
+        console.error('Authentication failed:', result?.error);
         setEmailError('Authentication failed. Please try again.');
         setIsLoading(false);
       }
       
     } catch (error) {
-      console.error('Email submit error:', error);
-      // If the direct fetch fails, fall back to the original method
-      console.log('Falling back to signIn method...');
-      
-      try {
-        const result = await signIn('credentials', {
-          email: email,
-          redirect: false,
-          callbackUrl: '/access-request'
-        });
-        
-        if (result?.ok && !result?.error) {
-          console.log('Fallback authentication successful');
-          window.location.href = '/access-request?t=' + Date.now();
-        } else {
-          setEmailError('Authentication failed. Please try again.');
-          setIsLoading(false);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback authentication also failed:', fallbackError);
-        setEmailError('An error occurred. Please try again.');
-        setIsLoading(false);
-      }
+      console.error('Email authentication error:', error);
+      setEmailError('An error occurred. Please try again.');
+      setIsLoading(false);
     }
   };
 

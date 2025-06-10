@@ -62,13 +62,13 @@ export default function AccessRequestForm() {
     lastname: '',
     firstname: '',
     phone: '',
-    email: session?.user?.email || '',
+    email: '',
     picture: null,
     EmailValidationDate: null,
     RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
     DeviceID: '',
     userid: '',
-    gmail: session?.user?.email || ''
+    gmail: ''
   });
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
@@ -101,43 +101,57 @@ export default function AccessRequestForm() {
   }, [currentImage]);
 
   useEffect(() => {
-    const adminEmail = 'jawilson1947@gmail.com';
-    const userEmail = session?.user?.email?.toLowerCase().trim();
+    // Direct admin check using form email (not session email since session auth isn't working)
+    // Also check localStorage as fallback for immediate post-login admin detection
+    const userEmailFromForm = formData.email;
+    const userEmailFromStorage = localStorage.getItem('nonGmailEmail');
+    const userEmail = userEmailFromForm || userEmailFromStorage || '';
+    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
     
-    if (userEmail === adminEmail.toLowerCase()) {
+    // CRITICAL: Admin state preservation during search operations
+    // If user was already admin (from localStorage), they remain admin regardless of record browsing
+    const storedAdminEmail = localStorage.getItem('nonGmailEmail');
+    const isStoredAdmin = storedAdminEmail === adminEmail;
+    const isCurrentAdmin = userEmail === adminEmail;
+    const isUserAdmin = isStoredAdmin || isCurrentAdmin;
+    
+    console.log('🔍 ADMIN STATE CHECK:', {
+      userEmailFromForm,
+      userEmailFromStorage: storedAdminEmail,
+      userEmail,
+      adminEmail,
+      isStoredAdmin,
+      isCurrentAdmin,
+      isUserAdmin,
+      finalDecision: `Admin status: ${isUserAdmin ? 'ENABLED' : 'DISABLED'}`
+    });
+    
+    if (isUserAdmin) {
+      console.log('✅ User is admin - enabling search');
       setIsSearchEnabled(true);
     } else {
+      console.log('❌ User is not admin - disabling search');
       setIsSearchEnabled(false);
     }
-  }, [session]);
+  }, [formData.email]); // Only depend on formData.email, not session
 
   useEffect(() => {
-    if (session?.user?.email) {
+    // Check for non-Gmail email from localStorage (credential login)
+    const nonGmailEmail = localStorage.getItem('nonGmailEmail');
+    if (nonGmailEmail && !formData.email) {
       setFormData(prev => ({
         ...prev,
-        email: session.user.email || '',
-        gmail: session.user.email || ''
+        email: nonGmailEmail,
+        gmail: ''  // Clear Gmail since this is a non-Gmail email
       }));
       // Search for the user's record when the component mounts
-      handleInitialSearch(session.user.email);
-    } else {
-      // Check for non-Gmail email from localStorage
-      const nonGmailEmail = localStorage.getItem('nonGmailEmail');
-      if (nonGmailEmail) {
-        setFormData(prev => ({
-          ...prev,
-          email: nonGmailEmail,
-          gmail: ''  // Clear Gmail since this is a non-Gmail email
-        }));
-        // Search for the user's record when the component mounts
-        handleInitialSearch(nonGmailEmail);
-      } else {
-        // No email found at all - set as new user
-        setIsLoadingUserData(false);
-        setUserDataStatus('new');
-      }
+      handleInitialSearch(nonGmailEmail);
+    } else if (!formData.email) {
+      // No email found at all - set as new user
+      setIsLoadingUserData(false);
+      setUserDataStatus('new');
     }
-  }, [session]);
+  }, []); // Only run once on mount
 
   const handleInitialSearch = async (email: string) => {
     try {
@@ -147,6 +161,7 @@ export default function AccessRequestForm() {
       
       const params = new URLSearchParams();
       params.append('email', email);
+      params.append('initial', 'true'); // Mark as initial search to prioritize exact email matches
       
       console.log('📡 Making API request to:', `/api/church-members/search?${params.toString()}`);
       
@@ -349,6 +364,17 @@ export default function AccessRequestForm() {
       const searchLastname = formData.lastname;
       const isWildcardSearch = searchLastname === '*';
       
+      // Check if this is a wildcard search and user is not admin
+      if (isWildcardSearch && !isSearchEnabled) {
+        // Clear the lastname field but do nothing else
+        setFormData(prev => ({
+          ...prev,
+          lastname: ''
+        }));
+        setIsLoading(false);
+        return; // Exit early, do nothing for non-admin wildcard attempts
+      }
+      
       // Clear the lastname field immediately after getting its search value
       setFormData(prev => ({
         ...prev,
@@ -370,6 +396,12 @@ export default function AccessRequestForm() {
       const response = await fetch(`/api/church-members/search?${params.toString()}`);
       
       if (!response.ok) {
+        if (response.status === 403) {
+          // Handle admin-only wildcard search restriction
+          const errorData = await response.json().catch(() => ({ error: 'Access denied' }));
+          alert(errorData.error || 'Wildcard searches are only available to administrators');
+          return;
+        }
         throw new Error('Search failed');
       }
       
@@ -392,6 +424,12 @@ export default function AccessRequestForm() {
           setImageError(false);
         }
 
+        // CRITICAL: Preserve admin email during wildcard search browsing
+        // Admin users should keep their admin email, not switch to browsed record's email
+        const currentUserEmail = formData.email;
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
+        const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
+        
         // Update form data with the actual record data
         setFormData(prevData => ({
           ...prevData,
@@ -399,7 +437,7 @@ export default function AccessRequestForm() {
           lastname: record.lastname || '', // Set to actual lastname from record
           firstname: record.firstname || '',
           phone: record.phone || '',
-          email: record.email || '',
+          email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during browsing
           picture: null,
           PictureUrl: record.PictureUrl || undefined,
           EmailValidationDate: record.EmailValidationDate || null,
@@ -448,13 +486,18 @@ export default function AccessRequestForm() {
         setImageError(false);
       }
 
+      // CRITICAL: Preserve admin email during navigation
+      const currentUserEmail = formData.email;
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
+      const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
+
       setFormData(prevData => ({
         ...prevData,
         EmpID: record.EmpID || 0,
         lastname: record.lastname || '', // Always use the actual lastname
         firstname: record.firstname || '',
         phone: record.phone || '',
-        email: record.email || '',
+        email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
         picture: null,
         PictureUrl: record.PictureUrl || undefined,
         EmailValidationDate: record.EmailValidationDate || null,
@@ -481,13 +524,18 @@ export default function AccessRequestForm() {
         setImageError(false);
       }
 
+      // CRITICAL: Preserve admin email during navigation
+      const currentUserEmail = formData.email;
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
+      const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
+
       setFormData(prevData => ({
         ...prevData,
         EmpID: record.EmpID || 0,
         lastname: record.lastname || '', // Always use the actual lastname
         firstname: record.firstname || '',
         phone: record.phone || '',
-        email: record.email || '',
+        email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
         picture: null,
         PictureUrl: record.PictureUrl || undefined,
         EmailValidationDate: record.EmailValidationDate || null,
@@ -695,7 +743,7 @@ export default function AccessRequestForm() {
   };
 
   const handleDelete = async () => {
-    if (!formData.EmpID || !session?.user?.isAdmin) {
+    if (!formData.EmpID || !isSearchEnabled) {
       return;
     }
 
@@ -734,13 +782,13 @@ export default function AccessRequestForm() {
       lastname: '',
       firstname: '',
       phone: '',
-      email: session?.user?.email || '',
+      email: '',
       picture: null,
       EmailValidationDate: null,
       RequestDate: mysqlDatetime,
       DeviceID: '',
       userid: '',
-      gmail: session?.user?.email || ''
+      gmail: ''
     });
     setCurrentImage('/PhotoID.jpeg');
     setImageError(false);
@@ -1132,18 +1180,18 @@ export default function AccessRequestForm() {
                         value={formData.email}
                         onChange={handleInputChange}
                         required
-                        readOnly={!session?.user?.isAdmin}
+                        readOnly={!isSearchEnabled}
                         style={{
                           width: '100%',
                           padding: '3px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
                           fontSize: '12px',
-                          backgroundColor: !session?.user?.isAdmin ? 'rgba(240, 240, 240, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                          backgroundColor: !isSearchEnabled ? 'rgba(240, 240, 240, 0.9)' : 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
                         placeholder="your.email@example.com"
-                        onFocus={(e) => session?.user?.isAdmin && (e.target.style.borderColor = '#60a5fa')}
+                        onFocus={(e) => isSearchEnabled && (e.target.style.borderColor = '#60a5fa')}
                         onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
                       />
                     </td>
@@ -1413,7 +1461,7 @@ export default function AccessRequestForm() {
               >
                 <span>💾</span>Save
               </button>
-              {session?.user?.isAdmin && formData.EmpID && (
+              {isSearchEnabled && formData.EmpID && (
                 <button
                   onClick={handleDelete}
                   title="Delete this record"
@@ -1445,29 +1493,30 @@ export default function AccessRequestForm() {
               )}
               <button
                 onClick={handlePrevious}
-                disabled={!canNavigate || currentRecordIndex <= 0}
+                disabled={!isSearchEnabled || !canNavigate || currentRecordIndex <= 0}
+                title={!isSearchEnabled ? "Only available for admin users" : "Previous record"}
                 style={{
                   padding: '8px 18px',
-                  backgroundColor: (canNavigate && currentRecordIndex > 0) ? '#1a1a5c' : '#d1d5db',
-                  color: (canNavigate && currentRecordIndex > 0) ? 'white' : '#6b7280',
+                  backgroundColor: (isSearchEnabled && canNavigate && currentRecordIndex > 0) ? '#1a1a5c' : '#d1d5db',
+                  color: (isSearchEnabled && canNavigate && currentRecordIndex > 0) ? 'white' : '#6b7280',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '12px',
                   fontWeight: '600',
-                  cursor: (canNavigate && currentRecordIndex > 0) ? 'pointer' : 'not-allowed',
+                  cursor: (isSearchEnabled && canNavigate && currentRecordIndex > 0) ? 'pointer' : 'not-allowed',
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px'
                 }}
                 onMouseOver={(e) => {
-                  if (canNavigate && currentRecordIndex > 0) {
+                  if (isSearchEnabled && canNavigate && currentRecordIndex > 0) {
                     e.currentTarget.style.backgroundColor = '#000033';
                     e.currentTarget.style.transform = 'translateY(-1px)';
                   }
                 }}
                 onMouseOut={(e) => {
-                  if (canNavigate && currentRecordIndex > 0) {
+                  if (isSearchEnabled && canNavigate && currentRecordIndex > 0) {
                     e.currentTarget.style.backgroundColor = '#1a1a5c';
                     e.currentTarget.style.transform = 'translateY(0)';
                   }
@@ -1477,29 +1526,30 @@ export default function AccessRequestForm() {
               </button>
               <button
                 onClick={handleNext}
-                disabled={!canNavigate || currentRecordIndex >= allRecords.length - 1}
+                disabled={!isSearchEnabled || !canNavigate || currentRecordIndex >= allRecords.length - 1}
+                title={!isSearchEnabled ? "Only available for admin users" : "Next record"}
                 style={{
                   padding: '8px 18px',
-                  backgroundColor: (canNavigate && currentRecordIndex < allRecords.length - 1) ? '#1a1a5c' : '#d1d5db',
-                  color: (canNavigate && currentRecordIndex < allRecords.length - 1) ? 'white' : '#6b7280',
+                  backgroundColor: (isSearchEnabled && canNavigate && currentRecordIndex < allRecords.length - 1) ? '#1a1a5c' : '#d1d5db',
+                  color: (isSearchEnabled && canNavigate && currentRecordIndex < allRecords.length - 1) ? 'white' : '#6b7280',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '12px',
                   fontWeight: '600',
-                  cursor: (canNavigate && currentRecordIndex < allRecords.length - 1) ? 'pointer' : 'not-allowed',
+                  cursor: (isSearchEnabled && canNavigate && currentRecordIndex < allRecords.length - 1) ? 'pointer' : 'not-allowed',
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px'
                 }}
                 onMouseOver={(e) => {
-                  if (canNavigate && currentRecordIndex < allRecords.length - 1) {
+                  if (isSearchEnabled && canNavigate && currentRecordIndex < allRecords.length - 1) {
                     e.currentTarget.style.backgroundColor = '#000033';
                     e.currentTarget.style.transform = 'translateY(-1px)';
                   }
                 }}
                 onMouseOut={(e) => {
-                  if (canNavigate && currentRecordIndex < allRecords.length - 1) {
+                  if (isSearchEnabled && canNavigate && currentRecordIndex < allRecords.length - 1) {
                     e.currentTarget.style.backgroundColor = '#1a1a5c';
                     e.currentTarget.style.transform = 'translateY(0)';
                   }

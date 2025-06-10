@@ -11,8 +11,8 @@ export default function AdminPage() {
     return <div>Loading...</div>;
   }
 
-  // Protect the admin route - only allow specific email(s)
-  if (!session?.user?.email || session.user.email !== 'jawilson1947@gmail.com') {
+  // Protect the admin route - only allow admin users
+  if (!session?.user?.isAdmin) {
     redirect('/');
   }
 
