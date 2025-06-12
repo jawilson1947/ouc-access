@@ -15,7 +15,7 @@ async function getDbModule() {
 }
 
 // Retry wrapper for database operations
-async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
+async function withRetry<T>(operation: () => Promise<T>, maxRetries = 1): Promise<T> {
   let lastError: Error;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -46,8 +46,8 @@ export async function createChurchMember(data: CreateChurchMemberInput): Promise
     const result = await executeQuery<any>(
       `INSERT INTO ChurchMembers (
         lastname, firstname, phone, email, PictureUrl,
-        EmailValidationDate, RequestDate, DeviceID, userid, gmail
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        EmailValidationDate, RequestDate, DeviceID, userid
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.lastname,
         data.firstname,
@@ -57,8 +57,7 @@ export async function createChurchMember(data: CreateChurchMemberInput): Promise
         data.EmailValidationDate || null,
         data.RequestDate,
         data.DeviceID || null,
-        data.userid || null,
-        data.gmail || null
+        data.userid || null
       ]
     );
     
@@ -76,7 +75,7 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
     const query = `
       UPDATE ChurchMembers SET
       lastname = ?, firstname = ?, phone = ?, email = ?, PictureUrl = ?,
-      EmailValidationDate = ?, RequestDate = ?, DeviceID = ?, userid = ?, gmail = ?
+      EmailValidationDate = ?, RequestDate = ?, DeviceID = ?, userid = ?
       WHERE EmpID = ?
     `;
     const values = [
@@ -89,7 +88,6 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
       data.RequestDate,
       data.DeviceID || null,
       data.userid || null,
-      data.gmail || null,
       data.EmpID
     ];
     

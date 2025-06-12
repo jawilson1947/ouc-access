@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     if (isWildcardSearch) {
       // Check admin status using direct email comparison (same as frontend)
       const userEmail = searchCriteria.email;
-      const adminEmail = process.env.ADMIN_EMAIL || 'jawilson1947@gmail.com';
+      const adminEmail = process.env.ADMIN_EMAIL;
       const isUserAdmin = userEmail === adminEmail;
       
       console.log('🔍 Wildcard search admin check:', {
@@ -66,13 +66,13 @@ export async function GET(request: Request) {
         console.log('🔍 Initial user search for:', searchCriteria.email);
         query += ' AND email = ?';
         params.push(searchCriteria.email);
-        query += ' ORDER BY lastname, firstname LIMIT 1';
+//        query += ' ORDER BY lastname, firstname LIMIT 1';
       }
     } else {
       // NORMAL SEARCH: Apply all relevant search criteria
       if (searchCriteria.email) {
         console.log('🔍 Email search for:', searchCriteria.email);
-        query += ' AND (email = ? OR gmail = ?)';
+        query += ' AND (email = ?)';
         params.push(searchCriteria.email, searchCriteria.email);
       }
 
@@ -126,7 +126,8 @@ export async function GET(request: Request) {
         lastname: dbMember.Lastname || member.lastname,
         firstname: dbMember.Firstname || member.firstname,
         phone: dbMember.Phone || member.phone,
-        email: dbMember.Email || member.email
+        email: dbMember.Email || member.email,
+        deviceid: dbMember.deviceid || member.DeviceID
       };
     });
     

@@ -9,7 +9,6 @@ export interface ChurchMember {
   RequestDate: Date | string;
   DeviceID?: string | null;
   userid?: string | null;
-  gmail?: string | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }

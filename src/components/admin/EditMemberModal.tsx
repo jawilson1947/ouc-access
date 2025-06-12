@@ -23,7 +23,6 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
     RequestDate: member.RequestDate,
     DeviceID: member.DeviceID || undefined,
     userid: member.userid || undefined,
-    gmail: member.gmail || undefined,
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

@@ -17,7 +17,6 @@ interface FormData {
   RequestDate: string; // MySQL DATETIME format: YYYY-MM-DD HH:mm:ss
   DeviceID: string;
   userid: string;
-  gmail: string;
   PictureUrl?: string;
 }
 
@@ -31,7 +30,6 @@ interface RequestData {
   RequestDate: string; // MySQL DATETIME format: YYYY-MM-DD HH:mm:ss
   DeviceID: string;
   userid: string;
-  gmail: string;
   EmpID?: number;
 }
 
@@ -67,8 +65,7 @@ export default function AccessRequestForm() {
     EmailValidationDate: null,
     RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
     DeviceID: '',
-    userid: '',
-    gmail: ''
+    userid: ''
   });
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
@@ -106,7 +103,7 @@ export default function AccessRequestForm() {
     const userEmailFromForm = formData.email;
     const userEmailFromStorage = localStorage.getItem('nonGmailEmail');
     const userEmail = userEmailFromForm || userEmailFromStorage || '';
-    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
+    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
     
     // CRITICAL: Admin state preservation during search operations
     // If user was already admin (from localStorage), they remain admin regardless of record browsing
@@ -242,8 +239,7 @@ export default function AccessRequestForm() {
             EmailValidationDate: emailValidationDate || null,
             RequestDate: requestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
             DeviceID: record.DeviceID || '',
-            userid: record.userid || '',
-            gmail: record.gmail || (email.endsWith('@gmail.com') ? email : '')
+            userid: record.userid || ''
           };
           
           console.log('📝 New form data being set:', newFormData);
@@ -390,8 +386,9 @@ export default function AccessRequestForm() {
       } else if (isWildcardSearch) {
         // If it's an asterisk, we don't need to add it to params
         // but we'll use it to trigger the full recordset search
-        params.append('lastname', '*');
-      }
+//        params.append('lastname', '*');
+          console.log("Wildcard search enabled");  
+    }
       
       const response = await fetch(`/api/church-members/search?${params.toString()}`);
       
@@ -399,7 +396,7 @@ export default function AccessRequestForm() {
         if (response.status === 403) {
           // Handle admin-only wildcard search restriction
           const errorData = await response.json().catch(() => ({ error: 'Access denied' }));
-          alert(errorData.error || 'Wildcard searches are only available to administrators');
+          console.log(errorData.error || 'Wildcard searches are only available to administrators');
           return;
         }
         throw new Error('Search failed');
@@ -427,7 +424,7 @@ export default function AccessRequestForm() {
         // CRITICAL: Preserve admin email during wildcard search browsing
         // Admin users should keep their admin email, not switch to browsed record's email
         const currentUserEmail = formData.email;
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
+        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || currentUserEmail;
         const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
         
         // Update form data with the actual record data
@@ -443,8 +440,7 @@ export default function AccessRequestForm() {
           EmailValidationDate: record.EmailValidationDate || null,
           RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
           DeviceID: record.DeviceID || '',
-          userid: record.userid || '',
-          gmail: record.gmail || ''
+          userid: record.userid || ''
         }));
 
         // Store all records in state if we have multiple results
@@ -488,7 +484,7 @@ export default function AccessRequestForm() {
 
       // CRITICAL: Preserve admin email during navigation
       const currentUserEmail = formData.email;
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;;
       const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
 
       setFormData(prevData => ({
@@ -503,8 +499,7 @@ export default function AccessRequestForm() {
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
-        userid: record.userid || '',
-        gmail: record.gmail || ''
+        userid: record.userid || ''
       }));
 
       setCurrentRecordIndex(newIndex);
@@ -526,7 +521,7 @@ export default function AccessRequestForm() {
 
       // CRITICAL: Preserve admin email during navigation
       const currentUserEmail = formData.email;
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'jawilson1947@gmail.com';
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
       const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
 
       setFormData(prevData => ({
@@ -541,8 +536,7 @@ export default function AccessRequestForm() {
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
-        userid: record.userid || '',
-        gmail: record.gmail || ''
+        userid: record.userid || ''
       }));
 
       setCurrentRecordIndex(newIndex);
@@ -621,8 +615,7 @@ export default function AccessRequestForm() {
         EmailValidationDate: formData.EmailValidationDate,
         RequestDate: formattedRequestDate,
         DeviceID: formData.DeviceID,
-        userid: formData.userid,
-        gmail: formData.gmail
+        userid: formData.userid
       };
 
       // Only include EmpID for updates
@@ -787,8 +780,7 @@ export default function AccessRequestForm() {
       EmailValidationDate: null,
       RequestDate: mysqlDatetime,
       DeviceID: '',
-      userid: '',
-      gmail: ''
+      userid: ''
     });
     setCurrentImage('/PhotoID.jpeg');
     setImageError(false);
