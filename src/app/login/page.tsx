@@ -12,6 +12,13 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Handle navigation when authenticated
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.push('/access-request');
+    }
+  }, [status, router]);
+
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -48,7 +55,7 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         email: email,
         redirect: false,
-        callbackUrl: '/access-request'
+        callbackUrl: 'http://localhost:3000/access-request'
       });
       
       console.log('NextAuth signIn result:', {
@@ -61,8 +68,7 @@ export default function LoginPage() {
       
       if (result?.ok && !result?.error) {
         console.log('Authentication successful, redirecting to access-request');
-        // Force a full page redirect to ensure session is properly loaded
-        window.location.href = '/access-request?t=' + Date.now();
+        router.push('/access-request');
       } else {
         console.error('Authentication failed:', result?.error);
         setEmailError('Authentication failed. Please try again.');
@@ -94,11 +100,6 @@ export default function LoginPage() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
-  }
-
-  if (status === 'authenticated') {
-    router.push('/access-request');
-    return null;
   }
 
   // First, let's create an OUC Logo component similar to the Google icon
@@ -154,8 +155,8 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#000033', paddingBottom: '80px' }}>
-      <div className="rounded-lg p-8 shadow-lg" style={{ backgroundColor: '#000033', border: '2px solid white' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#000033' }}>
+      <div className="rounded-lg p-8 shadow-lg" style={{ backgroundColor: '#000033' }}>
         <table style={{ width: '400px', margin: '0 auto' }}>
           <tbody>
             {/* Row 1: Logo - Using local ouc-logo.png */}
@@ -252,20 +253,7 @@ export default function LoginPage() {
                     gap: '8px',
                     fontSize: '16px',
                     fontWeight: '600',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                    height: '52px',
-                    boxSizing: 'border-box'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#2563eb';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#1d4ed8';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
+                    marginBottom: '16px'
                   }}
                 >
                   <EmailIcon />
@@ -274,76 +262,60 @@ export default function LoginPage() {
               </td>
             </tr>
 
-            {/* Row 6: Or */}
+            {/* Row 6: Divider */}
             <tr>
               <td className="p-4" style={{ textAlign: 'center' }}>
-                <p style={{ color: '#FFFFFF', margin: '10px 0' }}>or</p>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  margin: '16px 0'
+                }}>
+                  <div style={{ 
+                    flex: 1, 
+                    height: '1px', 
+                    backgroundColor: '#FFFFFF',
+                    opacity: 0.3
+                  }}></div>
+                  <span style={{ 
+                    margin: '0 16px', 
+                    color: '#FFFFFF',
+                    opacity: 0.7
+                  }}>or</span>
+                  <div style={{ 
+                    flex: 1, 
+                    height: '1px', 
+                    backgroundColor: '#FFFFFF',
+                    opacity: 0.3
+                  }}></div>
+                </div>
               </td>
             </tr>
 
-            {/* Row 7: Google Button - Using inline SVG */}
+            {/* Row 7: Google Sign In Button */}
             <tr>
               <td className="p-4" style={{ textAlign: 'center' }}>
                 <button
                   onClick={handleGoogleSignIn}
                   style={{ 
                     width: '100%',
-                    padding: '8px 16px',
-                    backgroundColor: '#000033',
-                    color: '#FFFFFF',
-                    border: '1px solid white',
-                    borderRadius: '4px',
+                    padding: '12px 16px',
+                    backgroundColor: '#FFFFFF',
+                    color: '#000000',
+                    border: 'none',
+                    borderRadius: '8px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px'
+                    gap: '8px',
+                    fontSize: '16px',
+                    fontWeight: '600'
                   }}
                 >
                   <GoogleIcon />
                   Continue with Google
                 </button>
-              </td>
-            </tr>
-
-            {/* Row 8: Welcome Message - Enhanced */}
-            <tr>
-              <td className="p-4" style={{ textAlign: 'left', paddingTop: '20px', paddingBottom: '40px' }}>
-                <div style={{ 
-                  backgroundColor: 'rgba(0, 0, 51, 0.9)',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  lineHeight: '1.6',
-                  border: '2px solid rgba(255, 255, 255, 0.8)',
-                  borderRadius: '8px',
-                  padding: '20px',
-                  textAlign: 'left',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)'
-                }}>
-                  <p style={{ margin: '0 0 15px 0', fontWeight: 'bold', fontSize: '16px', color: '#60a5fa' }}>
-                    🏛️ Welcome to OUC Facility Access
-                  </p>
-                  <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '500' }}>
-                    Request secure access to Oakwood University Church facilities in just a few simple steps.
-                  </p>
-                  <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
-                    <p style={{ margin: '0 0 8px 0' }}>
-                      <strong>📝 What you'll need:</strong> Full name, phone number, email, and a recent photo
-                    </p>
-                    <p style={{ margin: '0 0 8px 0' }}>
-                      <strong>🔐 Login options:</strong> Use your Gmail account or any email address
-                    </p>
-                    <p style={{ margin: '0 0 8px 0' }}>
-                      <strong>📱 Digital Key:</strong> Follow the mobile app guide for device access
-                    </p>
-                    <p style={{ margin: '0 0 12px 0' }}>
-                      <strong>💡 Easy updates:</strong> Return anytime to modify your request
-                    </p>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#b3b3b3' }}>
-                      <strong>Need help?</strong> Call (256) 837-1255 x199 or email ouc-it@oucsda.org
-                    </p>
-                  </div>
-                </div>
               </td>
             </tr>
           </tbody>

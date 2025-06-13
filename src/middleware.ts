@@ -1,69 +1,25 @@
 import { NextResponse } from 'next/server';
-import { withAuth } from 'next-auth/middleware';
+import { auth } from './auth';
+import type { NextRequest } from 'next/server';
 
-export default withAuth(
-  function middleware(req) {
-    const { pathname } = req.nextUrl;
-    
-    // Allow access to access-request page for all authenticated users
-    if (pathname.startsWith('/access-request')) {
-      return NextResponse.next();
-    }
-    
-    // Allow church-members API calls with email parameter (for form population)
-    if (pathname.startsWith('/api/church-members')) {
-      const url = new URL(req.url);
-      const email = url.searchParams.get('email');
-      // If there's an email parameter, allow the call (the API will handle its own authorization)
-      if (email) {
-        return NextResponse.next();
-      }
-    }
-    
-    // Allow upload API (it has its own authentication)
-    if (pathname.startsWith('/api/upload')) {
-      return NextResponse.next();
-    }
-    
+export default auth((req: NextRequest) => {
+  const { pathname } = req.nextUrl;
+  
+  // Allow access to login page and static assets
+  if (pathname === '/login' || 
+      pathname.startsWith('/_next') || 
+      pathname.startsWith('/api/auth') ||
+      pathname.includes('.')) {
     return NextResponse.next();
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const { pathname } = req.nextUrl;
-        
-        // Allow access to access-request page even without a full token
-        // as long as the user went through authentication
-        if (pathname.startsWith('/access-request')) {
-          return true;
-        }
-        
-        // Allow church-members API calls with email parameter
-        if (pathname.startsWith('/api/church-members')) {
-          const url = new URL(req.url);
-          const email = url.searchParams.get('email');
-          if (email) {
-            return true;
-          }
-        }
-        
-        // Allow upload API (it has its own authentication)
-        if (pathname.startsWith('/api/upload')) {
-          return true;
-        }
-        
-        return !!token;
-      },
-    },
-    pages: {
-      signIn: '/login',
-    },
   }
-);
+  
+  // Protect all other routes
+  return NextResponse.redirect(new URL('/login', req.url));
+});
 
 export const config = {
   matcher: [
     // Only apply middleware to non-API routes and non-static assets
-    '/((?!api|_next/static|_next/image|favicon.ico|login|uploads|.*\\.pdf|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg|.*\\.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|uploads|.*\\.pdf|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg|.*\\.ico).*)',
   ],
 }; 

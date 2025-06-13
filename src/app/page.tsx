@@ -3,40 +3,23 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import AccessRequestForm from '@/components/AccessRequestForm';
 
 export default function Home() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    const nonGmailEmail = localStorage.getItem('nonGmailEmail');
-    
-    if (status === 'unauthenticated' && !nonGmailEmail) {
+    if (status === 'unauthenticated') {
       router.push('/login');
-      return;
+    } else if (status === 'authenticated') {
+      router.push('/access-request');
     }
   }, [status, router]);
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
-  // Allow access if user has either a valid session or a non-Gmail email
-  const nonGmailEmail = localStorage.getItem('nonGmailEmail');
-  if (!session && !nonGmailEmail) {
-    return null;
-  }
-
+  // Show loading state while checking authentication
   return (
-    <main className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <AccessRequestForm />
-      </div>
-    </main>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#000033' }}>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+    </div>
   );
 } 

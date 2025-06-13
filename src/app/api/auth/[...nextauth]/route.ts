@@ -1,12 +1,14 @@
-import NextAuth from 'next-auth';
-import { authOptions } from '../config';
+import { authOptions } from "../config"
+import NextAuth from "next-auth"
 
-// Create and export the handler directly
-const handler = NextAuth(authOptions);
+// Create and export the handler using the new Next.js 14 pattern
+const handler = NextAuth(authOptions)
 
-// Export the GET and POST functions
-export { handler as GET, handler as POST };
+// Export the handler functions directly
+export const GET = handler
+export const POST = handler
 
+// Handle OPTIONS requests for CORS
 export async function OPTIONS(req: Request) {
   return new Response(null, {
     status: 200,

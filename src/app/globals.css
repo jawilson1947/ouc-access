@@ -16,6 +16,7 @@ body {
   background: var(--gradient-primary);
   margin: 0;
   padding: 0;
+  min-height: 100vh;
 }
 
 /* DaisyUI + OUC Theme Integration */
@@ -86,13 +87,22 @@ body {
 }
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 0, 0, 51;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
+  min-height: 100vh;
+}
+
+/* Ensure the background color extends to the full height */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #000033;
 }
 
 .picture-frame {

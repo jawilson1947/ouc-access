@@ -794,30 +794,21 @@ export default function AccessRequestForm() {
     return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}/${date.getFullYear()}`;
   };
 
-  // Update the exit handler to properly handle both Google and non-Google sessions
+  // Update the exit handler to properly handle signout in NextAuth v5
   const handleExit = async () => {
-    // Clear the non-Gmail email from localStorage if it exists
-    localStorage.removeItem('nonGmailEmail');
-    
-    // Clear any potential cache
-    if ('caches' in window) {
-      try {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
-      } catch (error) {
-        console.log('Cache clearing not supported or failed:', error);
-      }
-    }
-    
-    // If there's a session (Google login), sign out properly
-    if (session) {
-      await signOut({ 
+    try {
+      // Clear the non-Gmail email from localStorage if it exists
+      localStorage.removeItem('nonGmailEmail');
+      
+      // Sign out using the new NextAuth v5 syntax
+      await signOut({
         redirect: true,
-        callbackUrl: '/login?refreshed=' + Date.now()
+        callbackUrl: '/login'
       });
-    } else {
-      // If no session (non-Google login), force a fresh redirect with cache busting
-      window.location.href = '/login?refreshed=' + Date.now();
+    } catch (error) {
+      console.error('Error during signout:', error);
+      // If signout fails, force redirect to login
+      window.location.href = '/login';
     }
   };
 

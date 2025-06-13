@@ -1,10 +1,9 @@
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../config';
+import { auth } from '../../../../auth';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     return NextResponse.json(session || {});
   } catch (error) {
     console.error('Session Error:', error);
