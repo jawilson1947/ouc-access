@@ -1,5 +1,5 @@
 import NextAuth from "next-auth";
-import { authConfig } from "./auth.config";
+import { authOptions } from "./app/api/auth/config";
 
 // Extend the built-in session types
 declare module "next-auth" {
@@ -12,7 +12,7 @@ declare module "next-auth" {
   }
 }
 
-export const { auth, signIn, signOut } = NextAuth(authConfig);
+export const { auth, signIn, signOut } = NextAuth(authOptions);
 
 // Export the auth config for use in middleware
-export { authConfig };
+export { authOptions };

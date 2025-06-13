@@ -4,9 +4,14 @@ import NextAuth from "next-auth"
 // Create and export the handler using the new Next.js 14 pattern
 const handler = NextAuth(authOptions)
 
-// Export the handler functions directly
-export const GET = handler
-export const POST = handler
+// Export the handler functions as async functions
+export async function GET(request: Request) {
+  return (handler as any)(request)
+}
+
+export async function POST(request: Request) {
+  return (handler as any)(request)
+}
 
 // Handle OPTIONS requests for CORS
 export async function OPTIONS(req: Request) {

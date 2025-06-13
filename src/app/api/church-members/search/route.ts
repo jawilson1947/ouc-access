@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
 import { DatabaseError, executeQuery } from '@/lib/db';
 import { ChurchMember } from '@/types/database';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/config';
+import { auth } from '@/auth';
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+    const session = await auth();
     
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get('email');
+
+    if (!email) {
+      return NextResponse.json({ error: 'Email parameter is required' }, { status: 400 });
+    }
+
     const searchCriteria = {
       email: searchParams.get('email') || undefined,
       phone: searchParams.get('phone') || undefined,
