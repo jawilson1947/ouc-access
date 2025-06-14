@@ -1,25 +1,21 @@
-import { NextResponse } from 'next/server';
-import { auth } from './auth';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
-export default auth((req: NextRequest) => {
-  const { pathname } = req.nextUrl;
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request })
   
-  // Allow access to login page and static assets
-  if (pathname === '/login' || 
-      pathname.startsWith('/_next') || 
-      pathname.startsWith('/api/auth') ||
-      pathname.includes('.')) {
-    return NextResponse.next();
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
   
-  // Protect all other routes
-  return NextResponse.redirect(new URL('/login', req.url));
-});
+  return NextResponse.next()
+}
 
 export const config = {
   matcher: [
-    // Only apply middleware to non-API routes and non-static assets
-    '/((?!api|_next/static|_next/image|favicon.ico|uploads|.*\\.pdf|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.svg|.*\\.ico).*)',
-  ],
-}; 
+    "/access-request/:path*",
+    "/admin/:path*",
+    "/api/church-members/:path*"
+  ]
+} 

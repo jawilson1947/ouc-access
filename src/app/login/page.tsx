@@ -45,39 +45,20 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
       setEmailError('');
-      console.log('Attempting to authenticate with email:', email);
-      console.log('About to call signIn with credentials provider');
       
       // Store the email in localStorage for use in the access-request form
       localStorage.setItem('nonGmailEmail', email);
       
-      // Use NextAuth's signIn method for credentials authentication
-      const result = await signIn('credentials', {
-        email: email,
-        redirect: false,
-        callbackUrl: 'http://localhost:3000/access-request'
+      // Create a session using credentials provider
+      await signIn('credentials', {
+        email,
+        callbackUrl: '/access-request'
       });
-      
-      console.log('NextAuth signIn result:', {
-        result,
-        ok: result?.ok,
-        error: result?.error,
-        status: result?.status,
-        url: result?.url
-      });
-      
-      if (result?.ok && !result?.error) {
-        console.log('Authentication successful, redirecting to access-request');
-        router.push('/access-request');
-      } else {
-        console.error('Authentication failed:', result?.error);
-        setEmailError('Authentication failed. Please try again.');
-        setIsLoading(false);
-      }
       
     } catch (error) {
       console.error('Email authentication error:', error);
       setEmailError('An error occurred. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -85,11 +66,19 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      await signIn('google', {
-        callbackUrl: '/access-request',
+      const result = await signIn('google', {
+        redirect: false
       });
+      
+      if (result?.ok) {
+        router.push('/access-request');
+      } else {
+        setEmailError('Google sign-in failed. Please try again.');
+      }
     } catch (error) {
-      console.error('Sign-in error:', error);
+      console.error('Google sign-in error:', error);
+      setEmailError('An error occurred during Google sign-in.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -278,9 +267,9 @@ export default function LoginPage() {
                     opacity: 0.3
                   }}></div>
                   <span style={{ 
-                    margin: '0 16px', 
-                    color: '#FFFFFF',
-                    opacity: 0.7
+                    color: '#FFFFFF', 
+                    padding: '0 16px',
+                    fontSize: '14px'
                   }}>or</span>
                   <div style={{ 
                     flex: 1, 
@@ -310,7 +299,8 @@ export default function LoginPage() {
                     justifyContent: 'center',
                     gap: '8px',
                     fontSize: '16px',
-                    fontWeight: '600'
+                    fontWeight: '600',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
                   }}
                 >
                   <GoogleIcon />
@@ -328,12 +318,10 @@ export default function LoginPage() {
         bottom: '0',
         left: '0',
         right: '0',
-        backgroundColor: 'rgba(0, 0, 51, 0.95)',
-        borderTop: '2px solid rgba(255, 255, 255, 0.8)',
+        backgroundColor: '#000033',
+        borderTop: '2px solid #FFFFFF',
         padding: '18px 20px',
         textAlign: 'center',
-        backdropFilter: 'blur(10px)',
-        boxShadow: '0 -4px 8px rgba(0, 0, 0, 0.3)',
         zIndex: 1000
       }}>
         <p style={{

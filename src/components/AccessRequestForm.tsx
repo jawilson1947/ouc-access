@@ -53,6 +53,8 @@ function formatMySQLDateTime(date: Date | string | null): string | null {
 }
 
 export default function AccessRequestForm() {
+  console.log('🎨 AccessRequestForm component mounting');
+  
   const router = useRouter();
   const { data: session, status } = useSession();
   const [formData, setFormData] = useState<FormData>({
@@ -67,6 +69,13 @@ export default function AccessRequestForm() {
     DeviceID: '',
     userid: ''
   });
+
+  // Add mount logging
+  useEffect(() => {
+    console.log('🔄 AccessRequestForm mounted');
+    console.log('📧 Current localStorage nonGmailEmail:', localStorage.getItem('nonGmailEmail'));
+    console.log('📧 Current formData.email:', formData.email);
+  }, []);
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
   const [currentImage, setCurrentImage] = useState<string>('/PhotoID.jpeg');
@@ -133,9 +142,14 @@ export default function AccessRequestForm() {
   }, [formData.email]); // Only depend on formData.email, not session
 
   useEffect(() => {
+    console.log('🔄 Initial search useEffect running');
     // Check for non-Gmail email from localStorage (credential login)
     const nonGmailEmail = localStorage.getItem('nonGmailEmail');
+    console.log('📧 nonGmailEmail from localStorage:', nonGmailEmail);
+    console.log('📧 Current formData.email:', formData.email);
+    
     if (nonGmailEmail && !formData.email) {
+      console.log('✅ Found nonGmailEmail and no formData.email - setting email and searching');
       setFormData(prev => ({
         ...prev,
         email: nonGmailEmail,
@@ -144,9 +158,11 @@ export default function AccessRequestForm() {
       // Search for the user's record when the component mounts
       handleInitialSearch(nonGmailEmail);
     } else if (!formData.email) {
-      // No email found at all - set as new user
+      console.log('❌ No email found - setting as new user');
       setIsLoadingUserData(false);
       setUserDataStatus('new');
+    } else {
+      console.log('ℹ️ Email already set in formData:', formData.email);
     }
   }, []); // Only run once on mount
 
@@ -155,124 +171,55 @@ export default function AccessRequestForm() {
       console.log('🔍 Starting initial search for email:', email);
       setIsLoadingUserData(true);
       setUserDataStatus('loading');
-      
-      const params = new URLSearchParams();
-      params.append('email', email);
-      params.append('initial', 'true'); // Mark as initial search to prioritize exact email matches
-      
-      console.log('📡 Making API request to:', `/api/church-members/search?${params.toString()}`);
-      
-      const response = await fetch(`/api/church-members/search?${params.toString()}`);
-      
-      console.log('📨 API Response status:', response.status);
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          console.log('⚠️ Authentication issue - continuing as new user');
-          setUserDataStatus('new');
-          // If unauthorized, just continue without showing an error
-          // This happens for new users who don't have a record yet
-          return;
-        }
-        console.error('❌ Search failed with status:', response.status);
-        setUserDataStatus('error');
-        throw new Error('Search failed');
-      }
-      
-      const result = await response.json();
-      console.log('📋 Search result:', result);
-      console.log('📋 Result.data type:', typeof result.data);
-      console.log('📋 Result.data length:', result.data ? result.data.length : 'undefined');
-      
-      if (result.data && result.data.length > 0) {
-        const record = result.data[0];
-        console.log('✅ Found existing record for user:', record.firstname, record.lastname);
-        console.log('🔍 Full record data:', record);
-        
-        // Debug individual field values
-        console.log('🔍 Record field values:');
-        console.log('  - lastname:', record.lastname);
-        console.log('  - firstname:', record.firstname);
-        console.log('  - phone:', record.phone);
-        console.log('  - email:', record.email);
-        console.log('  - EmpID:', record.EmpID);
-        console.log('  - userid:', record.userid);
-        console.log('  - DeviceID:', record.DeviceID);
-        console.log('  - PictureUrl:', record.PictureUrl);
-        console.log('  - EmailValidationDate:', record.EmailValidationDate);
-        console.log('  - RequestDate:', record.RequestDate);
-        
-        setUserDataStatus('found');
-        
-        try {
-          if (record.PictureUrl) {
-            console.log('🖼️ Loading user photo:', record.PictureUrl);
-            // Validate the PictureUrl before setting it
-            if (typeof record.PictureUrl === 'string' && record.PictureUrl.length > 0) {
-              setCurrentImage(record.PictureUrl);
-            } else {
-              console.log('🖼️ Invalid PictureUrl, using default');
-              setCurrentImage('/PhotoID.jpeg');
-            }
-            setImageError(false);
-          } else {
-            console.log('🖼️ No photo URL, using default');
-            setCurrentImage('/PhotoID.jpeg');
-            setImageError(false);
-          }
-          
-          console.log('🗓️ Processing dates...');
-          const emailValidationDate = formatMySQLDateTime(record.EmailValidationDate);
-          const requestDate = formatMySQLDateTime(record.RequestDate) || 
-            formatMySQLDateTime(new Date());
-          console.log('🗓️ Processed dates:', { emailValidationDate, requestDate });
 
-          console.log('📝 Setting form data...');
-          const newFormData = {
-            EmpID: record.EmpID || 0,
-            lastname: record.lastname || '',
-            firstname: record.firstname || '',
-            phone: record.phone || '',
-            email: record.email || email,
-            picture: null,
-            PictureUrl: record.PictureUrl || undefined,
-            EmailValidationDate: emailValidationDate || null,
-            RequestDate: requestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
-            DeviceID: record.DeviceID || '',
-            userid: record.userid || ''
-          };
-          
-          console.log('📝 New form data being set:', newFormData);
-          
-          setFormData(prevData => ({
-            ...prevData,
-            ...newFormData
-          }));
-          
-          console.log('✅ Form populated with existing data successfully');
-          
-          // Verify the form data was set correctly after a brief delay
-          setTimeout(() => {
-            console.log('🔍 Verifying form data after setState:', {
-              lastname: formData.lastname,
-              firstname: formData.firstname,
-              phone: formData.phone
-            });
-          }, 100);
-          
-        } catch (formError) {
-          console.error('❌ Error during form population:', formError);
-          setUserDataStatus('error');
+      const response = await fetch(`/api/church-members/search?query=${encodeURIComponent(email)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('📥 Search response:', JSON.stringify(data, null, 2));
+
+      if (data.success && data.members && data.members.length > 0) {
+        const record = data.members[0];
+        console.log('📝 Found record:', JSON.stringify(record, null, 2));
+
+        // Set form data directly from the database record
+        setFormData(prev => ({
+          ...prev,
+          EmpID: record.EmpID,
+          lastname: record.lastname,
+          firstname: record.firstname,
+          phone: record.phone,
+          email: record.email,
+          PictureUrl: record.PictureUrl,
+          EmailValidationDate: record.EmailValidationDate,
+          RequestDate: record.RequestDate,
+          DeviceID: record.DeviceID,
+          userid: record.userid
+        }));
+
+        // Set current image if available
+        if (record.PictureUrl) {
+          console.log('🖼️ Setting image:', record.PictureUrl);
+          setCurrentImage(record.PictureUrl);
         }
+
+        setUserDataStatus('found');
       } else {
-        console.log('🆕 No existing record found - user will create new record');
+        console.log('ℹ️ No existing record found');
         setUserDataStatus('new');
       }
-      // If no records found, the form will stay empty for new user registration
     } catch (error) {
-      console.error('❌ Initial search error:', error);
+      console.error('❌ Search error:', error);
       setUserDataStatus('error');
-      // Don't show error to user, just let them fill out the form as a new user
     } finally {
       setIsLoadingUserData(false);
     }

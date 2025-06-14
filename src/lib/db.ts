@@ -26,9 +26,25 @@ export async function executeQuery<T>(
   const pool = createPool();
   const connection = await pool.getConnection();
   try {
+    console.log('🔍 Database Query:', {
+      query: query.trim(),
+      params: params || [],
+      connection: {
+        host: process.env.MYSQL_HOST,
+        database: process.env.MYSQL_DATABASE,
+        user: process.env.MYSQL_USER
+      }
+    });
+    
     const [rows] = await connection.execute(query, params);
+    console.log('✅ Query Result:', rows);
     return rows as T;
   } catch (error) {
+    console.error('❌ Database Error:', {
+      error,
+      query: query.trim(),
+      params: params || []
+    });
     throw new DatabaseError('Database query failed', error);
   } finally {
     connection.release();

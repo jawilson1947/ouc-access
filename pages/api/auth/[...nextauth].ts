@@ -1,25 +1,25 @@
-import type { NextAuthOptions } from "next-auth"
-import Google from "next-auth/providers/google"
-import Credentials from "next-auth/providers/credentials"
-import type { User } from "next-auth"
-
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL
+import NextAuth from "next-auth"
+import GoogleProvider from "next-auth/providers/google"
+import CredentialsProvider from "next-auth/providers/credentials"
+import { JWT } from "next-auth/jwt"
 
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  throw new Error('Missing Google OAuth credentials')
+  throw new Error("Missing Google OAuth credentials")
 }
 
-if (!ADMIN_EMAIL) {
-  throw new Error('Missing ADMIN_EMAIL environment variable')
+if (!process.env.ADMIN_EMAIL) {
+  throw new Error("Missing ADMIN_EMAIL environment variable")
 }
 
 if (!process.env.NEXTAUTH_SECRET) {
-  throw new Error('Missing NEXTAUTH_SECRET environment variable')
+  throw new Error("Missing NEXTAUTH_SECRET environment variable")
 }
 
-export const authOptions: NextAuthOptions = {
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL
+
+export const authOptions = {
   providers: [
-    Google({
+    GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       authorization: {
@@ -30,20 +30,20 @@ export const authOptions: NextAuthOptions = {
         }
       }
     }),
-    Credentials({
+    CredentialsProvider({
       name: "Email",
       credentials: {
         email: { label: "Email", type: "email" }
       },
       async authorize(credentials) {
-        if (!credentials?.email) return null
-        const email = credentials.email
+        if (!credentials?.email) return null;
+        const email = credentials.email;
         return {
           id: "1",
           email,
           name: email.split('@')[0],
-          isAdmin: email === ADMIN_EMAIL
-        }
+          isAdmin: email === process.env.ADMIN_EMAIL
+        };
       }
     })
   ],
@@ -52,24 +52,29 @@ export const authOptions: NextAuthOptions = {
     error: "/login"
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }: { token: JWT, user: any, account: any }) {
       if (user) {
         token.email = user.email
         token.isAdmin = user.email === ADMIN_EMAIL
       }
       return token
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any, token: JWT }) {
       if (session.user) {
         session.user.email = token.email
         session.user.isAdmin = token.isAdmin
       }
       return session
+    },
+    async redirect({ url, baseUrl }: { url: string, baseUrl: string }) {
+      return "/access-request"
     }
   },
   session: {
-    strategy: "jwt",
+    strategy: "jwt" as const,
     maxAge: 30 * 24 * 60 * 60 // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET
-} 
+}
+
+export default NextAuth(authOptions) 

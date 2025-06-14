@@ -10,11 +10,20 @@ export default function AccessRequestPage() {
   const router = useRouter();
 
   useEffect(() => {
+    console.log('🔄 AccessRequestPage useEffect running');
+    console.log('🔑 Session status:', status);
+    console.log('📧 nonGmailEmail in localStorage:', localStorage.getItem('nonGmailEmail'));
+    
     if (status === 'unauthenticated' && !localStorage.getItem('nonGmailEmail')) {
+      console.log('❌ No authentication - redirecting to login');
       router.push('/login');
+    } else {
+      console.log('✅ Authentication check passed');
     }
   }, [status, router]);
 
+  console.log('🎨 Rendering AccessRequestPage');
+  
   // Render the form immediately without any loading state
   return (
     <div style={{ 

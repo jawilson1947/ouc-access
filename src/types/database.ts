@@ -9,11 +9,9 @@ export interface ChurchMember {
   RequestDate: Date | string;
   DeviceID?: string | null;
   userid?: string | null;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
 }
 
-export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpID' | 'createdAt' | 'updatedAt'> {}
+export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpID'> {}
 export interface UpdateChurchMemberInput extends Partial<ChurchMember> {
   EmpID: number;
 }

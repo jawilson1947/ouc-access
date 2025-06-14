@@ -1,4 +1,5 @@
-import { CreateChurchMemberInput, UpdateChurchMemberInput } from '@/types/database';
+import { CreateChurchMemberInput, UpdateChurchMemberInput, ChurchMember } from '@/types/database';
+import { executeQuery } from '@/lib/db';
 
 // Dynamic import to handle webpack module resolution issues
 async function getDbModule() {
@@ -100,4 +101,35 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
     
     return success;
   });
+}
+
+export async function searchChurchMembers(email: string) {
+  try {
+    const sql = `
+      SELECT 
+        EmpID,
+        lastname,
+        firstname,
+        phone,
+        email,
+        PictureUrl,
+        EmailValidationDate,
+        RequestDate,
+        DeviceID,
+        userid
+      FROM ChurchMembers 
+      WHERE email = ?
+    `;
+    
+    console.log('🔍 Executing SQL query:', sql);
+    console.log('🔍 With parameters:', [email]);
+    
+    const result = await executeQuery<ChurchMember[]>(sql, [email]);
+    console.log('🔍 Raw database result:', JSON.stringify(result, null, 2));
+    
+    return result;
+  } catch (error) {
+    console.error('Error in searchChurchMembers:', error);
+    throw error;
+  }
 } 

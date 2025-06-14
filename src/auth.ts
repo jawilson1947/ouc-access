@@ -1,18 +1,4 @@
-import NextAuth from "next-auth";
-import { authOptions } from "./app/api/auth/config";
+import NextAuth from "next-auth"
+import { authOptions } from "./auth.config"
 
-// Extend the built-in session types
-declare module "next-auth" {
-  interface Session {
-    user: {
-      email: string;
-      name: string;
-      isAdmin: boolean;
-    };
-  }
-}
-
-export const { auth, signIn, signOut } = NextAuth(authOptions);
-
-// Export the auth config for use in middleware
-export { authOptions };
+export const { auth, signIn, signOut } = NextAuth(authOptions) 
