@@ -584,7 +584,7 @@ export default function AccessRequestForm() {
       // Upload picture if exists
       let PictureUrl = formData.PictureUrl;
       if (formData.picture) {
-        console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
+        console.log('📸 Photo upload detected');
         
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.picture);
@@ -614,18 +614,15 @@ export default function AccessRequestForm() {
         console.log('📸 Photo uploaded successfully:', url);
         PictureUrl = url;
         
-        // Add a small delay after photo upload to allow webpack to stabilize
-        console.log('📸 Photo uploaded, waiting briefly for system stability...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Update form state with new picture URL
+        setFormData(prev => ({
+          ...prev,
+          PictureUrl: url,
+          picture: null // Clear the file after successful upload
+        }));
         
-        // Trigger a cache refresh to prevent webpack module resolution issues
-        try {
-          console.log('🔄 Triggering cache refresh after photo upload...');
-          // Make a small request to ensure modules are properly loaded
-          await fetch('/api/auth/session', { method: 'GET' });
-        } catch (refreshError) {
-          console.warn('⚠️ Cache refresh failed, but continuing...', refreshError);
-        }
+        // Update current image display
+        setCurrentImage(url);
       }
 
       // Format the date in MySQL format if it's in ISO format
@@ -699,12 +696,13 @@ export default function AccessRequestForm() {
       }
 
       const result = await response.json();
-      if (method === 'POST' && result.EmpID) {
-        setFormData(prev => ({
-          ...prev,
-          EmpID: result.EmpID
-        }));
-      }
+      
+      // Update form state with the saved record
+      setFormData(prev => ({
+        ...prev,
+        EmpID: result.EmpID || prev.EmpID,
+        PictureUrl: PictureUrl || prev.PictureUrl
+      }));
 
       // Determine if this is an update or new record
       const action = formData.EmpID ? 'update' : 'create';

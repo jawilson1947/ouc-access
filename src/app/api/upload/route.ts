@@ -35,13 +35,24 @@ export async function POST(req: Request) {
     console.log(`📷 Processing file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const buffer = new Uint8Array(bytes);
 
     // Create unique filename
     const timestamp = Date.now();
-    // Sanitize filename
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
-    const filename = `${timestamp}-${sanitizedName}`;
+    
+    // Handle camera-captured images that might not have a filename
+    let filename: string;
+    if (!file.name || file.name === 'image.jpg' || file.name === 'image.jpeg' || file.name === 'blob') {
+      // Generate filename based on MIME type
+      const mimeType = file.type.split('/')[1] || 'jpg';
+      filename = `camera-${timestamp}.${mimeType}`;
+      console.log('📸 Camera-captured image detected, using generated filename:', filename);
+    } else {
+      // Sanitize filename and ensure it has an extension
+      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
+      const extension = sanitizedName.split('.').pop() || file.type.split('/')[1] || 'jpg';
+      filename = `${timestamp}-${sanitizedName.split('.')[0]}.${extension}`;
+    }
     
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     const filepath = join(uploadDir, filename);
@@ -51,11 +62,27 @@ export async function POST(req: Request) {
     // Ensure upload directory exists
     if (!existsSync(uploadDir)) {
       console.log('📁 Creating uploads directory...');
-      await mkdir(uploadDir, { recursive: true });
+      try {
+        await mkdir(uploadDir, { recursive: true });
+      } catch (mkdirError: any) {
+        console.error('❌ Failed to create uploads directory:', mkdirError);
+        return NextResponse.json(
+          { error: 'Failed to create uploads directory', details: mkdirError.message },
+          { status: 500 }
+        );
+      }
     }
 
-    await writeFile(filepath, buffer);
-    console.log('✅ File saved successfully');
+    try {
+      await writeFile(filepath, buffer);
+      console.log('✅ File saved successfully');
+    } catch (writeError: any) {
+      console.error('❌ Failed to write file:', writeError);
+      return NextResponse.json(
+        { error: 'Failed to save file', details: writeError.message },
+        { status: 500 }
+      );
+    }
 
     // Return the URL that can be used to access the file
     const url = `/uploads/${filename}`;
