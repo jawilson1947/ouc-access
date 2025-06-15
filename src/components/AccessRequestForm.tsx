@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { PhotoFrame } from '@/components/PhotoFrame';
+import type { Session } from 'next-auth';
 
 interface ChurchMember {
   EmpID: number;
@@ -17,13 +18,6 @@ interface ChurchMember {
   RequestDate: string;
   DeviceID: string;
   userid: string;
-}
-
-interface Session {
-  user?: {
-    email?: string;
-    accessToken?: string;
-  };
 }
 
 interface FormData {
@@ -77,7 +71,7 @@ export default function AccessRequestForm() {
   console.log('🎨 AccessRequestForm component mounting');
   
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession() as { data: Session | null };
   const [formData, setFormData] = useState<FormData>({
     EmpID: 0,
     lastname: '',
