@@ -13,10 +13,18 @@ export async function POST(req: Request) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
+    const lastname = formData.get('lastname') as string;
+    const firstname = formData.get('firstname') as string;
+    const phone = formData.get('phone') as string;
     
     if (!file) {
       console.error('❌ Upload failed: No file provided');
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    if (!lastname || !firstname || !phone) {
+      console.error('❌ Upload failed: Missing required fields');
+      return NextResponse.json({ error: 'Lastname, firstname, and phone are required' }, { status: 400 });
     }
 
     // Validate file type
@@ -37,22 +45,22 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = new Uint8Array(bytes);
 
-    // Create unique filename
-    const timestamp = Date.now();
+    // Get the last 4 digits of the phone number
+    const last4Digits = phone.replace(/\D/g, '').slice(-4);
     
-    // Handle camera-captured images that might not have a filename
-    let filename: string;
+    // Determine file extension based on source
+    let extension: string;
     if (!file.name || file.name === 'image.jpg' || file.name === 'image.jpeg' || file.name === 'blob') {
-      // Generate filename based on MIME type
-      const mimeType = file.type.split('/')[1] || 'jpg';
-      filename = `camera-${timestamp}.${mimeType}`;
-      console.log('📸 Camera-captured image detected, using generated filename:', filename);
+      // Camera-captured images should be jpeg
+      extension = 'jpg';
     } else {
-      // Sanitize filename and ensure it has an extension
-      const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
-      const extension = sanitizedName.split('.').pop() || file.type.split('/')[1] || 'jpg';
-      filename = `${timestamp}-${sanitizedName.split('.')[0]}.${extension}`;
+      // For other images, use the original extension or default to png
+      const originalExt = file.name.split('.').pop()?.toLowerCase();
+      extension = (originalExt === 'jpg' || originalExt === 'jpeg') ? 'jpg' : 'png';
     }
+
+    // Create filename: lastname + firstname + last4digits + extension
+    const filename = `${lastname}${firstname}${last4Digits}.${extension}`;
     
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     const filepath = join(uploadDir, filename);

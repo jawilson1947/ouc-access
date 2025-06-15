@@ -412,91 +412,83 @@ export default function AccessRequestForm() {
   const handleSearch = async () => {
     try {
       setIsLoading(true);
-      setError(null);
-      setSearchResults([]);
-      setCurrentIndex(0);
-
+      setError('');
+      
       // Get the search value from the lastname field
       const searchValue = formData.lastname.trim();
-      console.log('🔍 Search value:', searchValue);
-
-      // Clear the lastname field immediately after getting its value
-      setFormData(prev => ({ ...prev, lastname: '' }));
-
+      
       // Check if this is a wildcard search
       const isWildcardSearch = searchValue === '*';
-      console.log('🔍 Is wildcard search:', isWildcardSearch);
-
-      // For wildcard searches, only allow if user is admin
-      if (isWildcardSearch && !isAdmin) {
-        setError('Wildcard searches are only available to administrators');
+      
+      // Only allow wildcard searches for admin users
+      if (isWildcardSearch && !isSearchEnabled) {
+        setError('Wildcard searches are only allowed for admin users');
         return;
       }
 
-      // Store the login email before search
-      const loginEmail = formData.email;
-
       // Construct the search query
-      let searchQuery: string;
-      if (isWildcardSearch) {
-        searchQuery = '*';
-      } else {
-        // Build field-specific search query
-        const searchTerms = [];
-        if (formData.email) searchTerms.push(`email:${formData.email}`);
-        if (formData.userid) searchTerms.push(`userid:${formData.userid}`);
-        if (searchValue) searchTerms.push(`lastname:${searchValue}`);
-        if (searchTerms.length > 0) {
-          searchQuery = searchTerms.join(',');
-        } else {
-          setError('Please enter a search term');
-          return;
-        }
-      }
-
-      console.log('🔍 Final search query:', searchQuery);
-
-      const response = await fetch(`/api/church-members/search?query=${encodeURIComponent(searchQuery)}`, {
+      const query = isWildcardSearch ? '*' : `lastname:${encodeURIComponent(searchValue)}`;
+      
+      console.log('🔍 Executing search with query:', query);
+      
+      const response = await fetch(`/api/church-members/search?query=${query}`, {
         headers: {
           'Authorization': `Bearer ${session?.user?.accessToken}`
         }
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Search error:', errorData);
-        throw new Error(errorData.error || 'Failed to search members');
+        throw new Error(`Search failed: ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log('🔍 Search response:', result);
+      console.log('📥 Search results:', result);
 
-      if (result.members && result.members.length > 0) {
-        setSearchResults(result.members);
-        setCurrentIndex(0);
-        
-        // Always preserve the login email
-        setFormData(prev => ({
-          ...prev,
-          ...result.members[0],
-          email: loginEmail, // Always preserve the login email
-          PictureUrl: result.members[0].PictureUrl || '/default-avatar.png'
-        }));
-
-        // Enable navigation only for wildcard searches with multiple results
-        if (isWildcardSearch) {
-          setCanNavigate(result.members.length > 1);
-          setAllRecords(result.members);
-        } else {
-          setCanNavigate(false);
-        }
-      } else {
-        setError('No matching records found');
+      if (!result.members || result.members.length === 0) {
+        setError('No records found');
+        setAllRecords([]);
+        setCurrentRecordIndex(-1);
         setCanNavigate(false);
+        return;
       }
-    } catch (err) {
-      console.error('Search error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred during search');
+
+      // Store all records and enable navigation if there are multiple results
+      setAllRecords(result.members);
+      setCurrentRecordIndex(0);
+      setCanNavigate(result.members.length > 1);
+
+      // Get the first record
+      const record = result.members[0];
+      
+      // Store admin email before updating form
+      const adminEmail = formData.email;
+      
+      // Update form with the record data
+      setFormData(prev => ({
+        ...prev,
+        EmpID: record.EmpID || 0,
+        lastname: record.lastname || '',
+        firstname: record.firstname || '',
+        phone: record.phone || '',
+        email: record.email || '', // Use the record's email
+        PictureUrl: record.PictureUrl || '',
+        EmailValidationDate: record.EmailValidationDate || null,
+        RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
+        DeviceID: record.DeviceID || '',
+        userid: record.userid || '',
+        gmail: adminEmail // Store admin email in gmail field
+      }));
+
+      // Update current image if available
+      if (record.PictureUrl) {
+        setCurrentImage(record.PictureUrl);
+      } else {
+        setCurrentImage('/PhotoID.jpeg');
+      }
+
+    } catch (error) {
+      console.error('Search error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred during search');
     } finally {
       setIsLoading(false);
     }
@@ -588,11 +580,17 @@ export default function AccessRequestForm() {
         
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.picture);
+        uploadFormData.append('lastname', formData.lastname);
+        uploadFormData.append('firstname', formData.firstname);
+        uploadFormData.append('phone', formData.phone);
         
         console.log('📸 Uploading photo...', {
           fileName: formData.picture.name,
           fileSize: formData.picture.size,
-          fileType: formData.picture.type
+          fileType: formData.picture.type,
+          lastname: formData.lastname,
+          firstname: formData.firstname,
+          phone: formData.phone
         });
         
         const uploadResponse = await fetch('/api/upload', {
