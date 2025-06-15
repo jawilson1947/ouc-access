@@ -103,11 +103,14 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
   });
 }
 
-export async function searchChurchMembers(email: string) {
+export async function searchChurchMembers(query: string) {
   try {
-    // If email is empty or contains wildcard, return all records
-    const isWildcardSearch = !email || email.includes('*') || email.includes('%');
-    const sql = isWildcardSearch ? `
+    // Only treat '*' as a wildcard search
+    const isWildcardSearch = query === '*';
+    console.log('🔍 Search type:', isWildcardSearch ? 'Wildcard' : 'Specific search');
+    console.log('🔍 Search query:', query);
+    
+    let sql = `
       SELECT 
         EmpID,
         lastname,
@@ -120,29 +123,45 @@ export async function searchChurchMembers(email: string) {
         DeviceID,
         userid
       FROM ChurchMembers 
-      WHERE EmpID IS NOT NULL 
-      ORDER BY lastname, firstname
-    ` : `
-      SELECT 
-        EmpID,
-        lastname,
-        firstname,
-        phone,
-        email,
-        PictureUrl,
-        EmailValidationDate,
-        RequestDate,
-        DeviceID,
-        userid
-      FROM ChurchMembers 
-      WHERE email = ?
     `;
+
+    let params: any[] = [];
+
+    if (!isWildcardSearch) {
+      // Parse the query string for field-specific searches
+      // Format: field:value,field:value
+      const searchTerms = query.split(',').map(term => term.trim());
+      const conditions: string[] = [];
+      
+      searchTerms.forEach(term => {
+        const [field, value] = term.split(':').map(part => part.trim());
+        if (field && value) {
+          // Use exact match for email field, LIKE for others
+          if (field.toLowerCase() === 'email') {
+            conditions.push(`${field} = ?`);
+            params.push(value);
+          } else {
+            conditions.push(`${field} LIKE ?`);
+            params.push(`%${value}%`);
+          }
+        }
+      });
+
+      if (conditions.length > 0) {
+        sql += ` WHERE ${conditions.join(' AND ')}`;
+      }
+    }
+
+    sql += ` ORDER BY lastname, firstname`;
     
     console.log('🔍 Executing SQL query:', sql);
-    console.log('🔍 With parameters:', isWildcardSearch ? [] : [email]);
+    console.log('🔍 With parameters:', params);
     
-    const result = await executeQuery<ChurchMember[]>(sql, isWildcardSearch ? [] : [email]);
+    const { executeQuery } = await getDbModule();
+    const result = await executeQuery<ChurchMember[]>(sql, params);
+    
     console.log('🔍 Raw database result:', JSON.stringify(result, null, 2));
+    console.log('🔍 Number of records found:', Array.isArray(result) ? result.length : 0);
     
     return result;
   } catch (error) {

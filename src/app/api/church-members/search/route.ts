@@ -21,14 +21,18 @@ export async function GET(request: Request) {
     console.log('✅ Token found for user:', token.email);
 
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('query') || '';
+    const query = searchParams.get('query');
     
     if (!query) {
+      console.log('❌ No query provided');
       return NextResponse.json(
-        { success: false, error: 'Query is required' },
+        { success: false, error: 'Query parameter is required' },
         { status: 400 }
       );
     }
+    
+    console.log('🔍 Search query:', query);
+    console.log('🔍 Is wildcard search:', query === '*');
 
     const members = await searchChurchMembers(query) as ChurchMember[];
     console.log('🔍 Raw database results:', JSON.stringify(members, null, 2));

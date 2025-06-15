@@ -6,6 +6,26 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { PhotoFrame } from '@/components/PhotoFrame';
 
+interface ChurchMember {
+  EmpID: number;
+  lastname: string;
+  firstname: string;
+  phone: string;
+  email: string;
+  PictureUrl?: string;
+  EmailValidationDate: string | null;
+  RequestDate: string;
+  DeviceID: string;
+  userid: string;
+}
+
+interface Session {
+  user?: {
+    email?: string;
+    accessToken?: string;
+  };
+}
+
 interface FormData {
   EmpID: number;
   lastname: string;
@@ -109,27 +129,28 @@ export default function AccessRequestForm() {
   }, [currentImage]);
 
   useEffect(() => {
-    // Direct admin check using form email (not session email since session auth isn't working)
-    // Also check localStorage as fallback for immediate post-login admin detection
+    // Check all possible sources of admin email
+    const sessionEmail = session?.user?.email;
     const userEmailFromForm = formData.email;
     const userEmailFromStorage = localStorage.getItem('nonGmailEmail');
-    const userEmail = userEmailFromForm || userEmailFromStorage || '';
     const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
     
-    // CRITICAL: Admin state preservation during search operations
-    // If user was already admin (from localStorage), they remain admin regardless of record browsing
-    const storedAdminEmail = localStorage.getItem('nonGmailEmail');
-    const isStoredAdmin = storedAdminEmail === adminEmail;
-    const isCurrentAdmin = userEmail === adminEmail;
-    const isUserAdmin = isStoredAdmin || isCurrentAdmin;
+    // Consider all possible admin email sources
+    const isSessionAdmin = sessionEmail === adminEmail;
+    const isFormAdmin = userEmailFromForm === adminEmail;
+    const isStorageAdmin = userEmailFromStorage === adminEmail;
+    
+    // User is admin if any of the email sources match admin email
+    const isUserAdmin = isSessionAdmin || isFormAdmin || isStorageAdmin;
     
     console.log('🔍 ADMIN STATE CHECK:', {
+      sessionEmail,
       userEmailFromForm,
-      userEmailFromStorage: storedAdminEmail,
-      userEmail,
+      userEmailFromStorage,
       adminEmail,
-      isStoredAdmin,
-      isCurrentAdmin,
+      isSessionAdmin,
+      isFormAdmin,
+      isStorageAdmin,
       isUserAdmin,
       finalDecision: `Admin status: ${isUserAdmin ? 'ENABLED' : 'DISABLED'}`
     });
@@ -141,7 +162,7 @@ export default function AccessRequestForm() {
       console.log('❌ User is not admin - disabling search');
       setIsSearchEnabled(false);
     }
-  }, [formData.email]); // Only depend on formData.email, not session
+  }, [formData.email, session]); // Add session as a dependency
 
   useEffect(() => {
     console.log('🔄 Initial search useEffect running');
@@ -178,7 +199,7 @@ export default function AccessRequestForm() {
       setIsLoadingUserData(true);
       setUserDataStatus('loading');
 
-      const response = await fetch(`/api/church-members/search?query=${encodeURIComponent(email)}`, {
+      const response = await fetch(`/api/church-members/search?query=email:${encodeURIComponent(email)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -197,14 +218,14 @@ export default function AccessRequestForm() {
         const record = data.members[0];
         console.log('📝 Found record:', JSON.stringify(record, null, 2));
 
-        // Set form data directly from the database record
+        // Set form data from the database record but preserve the login email
         setFormData(prev => ({
           ...prev,
           EmpID: record.EmpID,
           lastname: record.lastname,
           firstname: record.firstname,
           phone: record.phone,
-          email: record.email,
+          // Don't overwrite the email field - keep the login email
           PictureUrl: record.PictureUrl,
           EmailValidationDate: record.EmailValidationDate,
           RequestDate: record.RequestDate,
@@ -304,120 +325,186 @@ export default function AccessRequestForm() {
     }
   };
 
-  const handleSearch = async () => {
-    try {
-      setIsLoading(true); // Set loading state at start
-      
-      const searchEmail = formData.email;
-      const searchUserId = formData.userid;
-      const searchLastname = formData.lastname;
-      const isWildcardSearch = searchLastname === '*';
-      
-      // Check if this is a wildcard search and user is not admin
-      if (isWildcardSearch && !isSearchEnabled) {
-        // Clear the lastname field but do nothing else
-        setFormData(prev => ({
-          ...prev,
-          lastname: ''
-        }));
-        setIsLoading(false);
-        return; // Exit early, do nothing for non-admin wildcard attempts
-      }
-      
-      // Clear the lastname field immediately after getting its search value
+  const [error, setError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<ChurchMember[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Add useEffect for initial load and admin check
+  useEffect(() => {
+    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+    const sessionEmail = session?.user?.email;
+    const storedAdminEmail = localStorage.getItem('nonGmailEmail');
+    const loginEmail = sessionEmail || storedAdminEmail;
+
+    if (loginEmail) {
+      // Check if user is admin
+      const isUserAdmin = loginEmail === adminEmail;
+      setIsAdmin(isUserAdmin);
+
+      // Always set the email field to the login email
       setFormData(prev => ({
         ...prev,
-        lastname: ''
+        email: loginEmail
       }));
 
-      const params = new URLSearchParams();
-      if (searchEmail) params.append('email', searchEmail);
-      if (searchUserId) params.append('userId', searchUserId);
-      // Only add lastname to params if it's not an asterisk
-      if (searchLastname && !isWildcardSearch) {
-        params.append('lastname', searchLastname);
-      } else if (isWildcardSearch) {
-        // If it's an asterisk, we don't need to add it to params
-        // but we'll use it to trigger the full recordset search
-//        params.append('lastname', '*');
-          console.log("Wildcard search enabled");  
+      // Search for the user's record using exact email match
+      handleSearchByEmail(loginEmail);
     }
-      
-      const response = await fetch(`/api/church-members/search?${params.toString()}`);
-      
+  }, [session?.user?.email]); // Only run when session email changes
+
+  // Update handleSearchByEmail to handle exact email matches
+  const handleSearchByEmail = async (email: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setSearchResults([]);
+      setCurrentIndex(0);
+
+      console.log('🔍 Searching for email:', email);
+
+      // Use exact match for email search
+      const response = await fetch(`/api/church-members/search?query=email:${encodeURIComponent(email)}`, {
+        headers: {
+          'Authorization': `Bearer ${session?.user?.accessToken}`
+        }
+      });
+
       if (!response.ok) {
-        if (response.status === 403) {
-          // Handle admin-only wildcard search restriction
-          const errorData = await response.json().catch(() => ({ error: 'Access denied' }));
-          console.log(errorData.error || 'Wildcard searches are only available to administrators');
-          return;
-        }
-        throw new Error('Search failed');
+        const errorData = await response.json();
+        console.error('Search error:', errorData);
+        throw new Error(errorData.error || 'Failed to search members');
       }
-      
+
       const result = await response.json();
-      
-      if (result.data && result.data.length > 0) {
-        // If searching with '*', show the total number of records found
-        if (isWildcardSearch) {
-          alert(`Found ${result.data.length} records. Displaying the first record.`);
-        }
+      console.log('🔍 Search response:', result);
 
-        const record = result.data[0];
-
-        // First update the image if it exists
-        if (record.PictureUrl) {
-          setCurrentImage(record.PictureUrl);
-          setImageError(false);
-        } else {
-          setCurrentImage('/PhotoID.jpeg');
-          setImageError(false);
-        }
-
-        // CRITICAL: Preserve admin email during wildcard search browsing
-        // Admin users should keep their admin email, not switch to browsed record's email
-        const currentUserEmail = formData.email;
-        const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || currentUserEmail;
-        const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
-        
-        // Update form data with the actual record data
-        setFormData(prevData => ({
-          ...prevData,
-          EmpID: record.EmpID || 0,
-          lastname: record.lastname || '', // Set to actual lastname from record
-          firstname: record.firstname || '',
-          phone: record.phone || '',
-          email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during browsing
-          picture: null,
-          PictureUrl: record.PictureUrl || undefined,
-          EmailValidationDate: record.EmailValidationDate || null,
-          RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
-          DeviceID: record.DeviceID || '',
-          userid: record.userid || ''
+      if (result.members && result.members.length > 0) {
+        const member = result.members[0];
+        setSearchResults([member]); // Only store the exact match
+        setCurrentIndex(0);
+        setFormData(prev => ({
+          ...prev,
+          ...member,
+          email: prev.email, // Preserve the login email
+          PictureUrl: member.PictureUrl || '/default-avatar.png'
         }));
-
-        // Store all records in state if we have multiple results
-        if (result.data.length > 1) {
-          setAllRecords(result.data);
-          setCurrentRecordIndex(0);
-        } else {
-          setAllRecords([]);
-          setCurrentRecordIndex(-1);
-        }
-
-        // Enable navigation buttons if we have multiple records
-        setCanNavigate(result.data.length > 1);
+        setCanNavigate(false); // No navigation for single record
       } else {
-        alert('No records found');
-        setAllRecords([]);
-        setCurrentRecordIndex(-1);
+        // If no record found, clear all fields except email
+        setFormData(prev => ({
+          ...prev,
+          EmpID: 0,
+          lastname: '',
+          firstname: '',
+          phone: '',
+          PictureUrl: '/default-avatar.png',
+          EmailValidationDate: null,
+          RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
+          DeviceID: '',
+          userid: ''
+        }));
         setCanNavigate(false);
       }
-    } catch (error) {
-      console.error('Search error:', error);
-      alert('Failed to search records');
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during search');
     } finally {
-      setIsLoading(false); // Clear loading state when done
+      setIsLoading(false);
+    }
+  };
+
+  // Update handleSearch to properly handle wildcard and specific searches
+  const handleSearch = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setSearchResults([]);
+      setCurrentIndex(0);
+
+      // Get the search value from the lastname field
+      const searchValue = formData.lastname.trim();
+      console.log('🔍 Search value:', searchValue);
+
+      // Clear the lastname field immediately after getting its value
+      setFormData(prev => ({ ...prev, lastname: '' }));
+
+      // Check if this is a wildcard search
+      const isWildcardSearch = searchValue === '*';
+      console.log('🔍 Is wildcard search:', isWildcardSearch);
+
+      // For wildcard searches, only allow if user is admin
+      if (isWildcardSearch && !isAdmin) {
+        setError('Wildcard searches are only available to administrators');
+        return;
+      }
+
+      // Store the login email before search
+      const loginEmail = formData.email;
+
+      // Construct the search query
+      let searchQuery: string;
+      if (isWildcardSearch) {
+        searchQuery = '*';
+      } else {
+        // Build field-specific search query
+        const searchTerms = [];
+        if (formData.email) searchTerms.push(`email:${formData.email}`);
+        if (formData.userid) searchTerms.push(`userid:${formData.userid}`);
+        if (searchValue) searchTerms.push(`lastname:${searchValue}`);
+        if (searchTerms.length > 0) {
+          searchQuery = searchTerms.join(',');
+        } else {
+          setError('Please enter a search term');
+          return;
+        }
+      }
+
+      console.log('🔍 Final search query:', searchQuery);
+
+      const response = await fetch(`/api/church-members/search?query=${encodeURIComponent(searchQuery)}`, {
+        headers: {
+          'Authorization': `Bearer ${session?.user?.accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Search error:', errorData);
+        throw new Error(errorData.error || 'Failed to search members');
+      }
+
+      const result = await response.json();
+      console.log('🔍 Search response:', result);
+
+      if (result.members && result.members.length > 0) {
+        setSearchResults(result.members);
+        setCurrentIndex(0);
+        
+        // Always preserve the login email
+        setFormData(prev => ({
+          ...prev,
+          ...result.members[0],
+          email: loginEmail, // Always preserve the login email
+          PictureUrl: result.members[0].PictureUrl || '/default-avatar.png'
+        }));
+
+        // Enable navigation only for wildcard searches with multiple results
+        if (isWildcardSearch) {
+          setCanNavigate(result.members.length > 1);
+          setAllRecords(result.members);
+        } else {
+          setCanNavigate(false);
+        }
+      } else {
+        setError('No matching records found');
+        setCanNavigate(false);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during search');
+    } finally {
+      setIsLoading(false);
     }
   };
 

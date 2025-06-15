@@ -26,7 +26,7 @@ export async function executeQuery<T>(
   const pool = createPool();
   const connection = await pool.getConnection();
   try {
-    console.log('🔍 Database Query:', {
+    console.log('🔍 Database Query Details:', {
       query: query.trim(),
       params: params || [],
       connection: {
@@ -37,7 +37,11 @@ export async function executeQuery<T>(
     });
     
     const [rows] = await connection.execute(query, params);
-    console.log('✅ Query Result:', rows);
+    console.log('✅ Query Result Details:', {
+      rowCount: Array.isArray(rows) ? rows.length : 0,
+      firstRow: Array.isArray(rows) && rows.length > 0 ? rows[0] : null,
+      allRows: rows
+    });
     return rows as T;
   } catch (error) {
     console.error('❌ Database Error:', {
