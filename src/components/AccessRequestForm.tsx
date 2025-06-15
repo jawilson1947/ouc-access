@@ -18,6 +18,7 @@ interface FormData {
   DeviceID: string;
   userid: string;
   PictureUrl?: string;
+  gmail: string;
 }
 
 interface RequestData {
@@ -67,7 +68,8 @@ export default function AccessRequestForm() {
     EmailValidationDate: null,
     RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
     DeviceID: '',
-    userid: ''
+    userid: '',
+    gmail: ''
   });
 
   // Add mount logging
@@ -143,20 +145,24 @@ export default function AccessRequestForm() {
 
   useEffect(() => {
     console.log('🔄 Initial search useEffect running');
-    // Check for non-Gmail email from localStorage (credential login)
+    // Check for session email (Google login) or non-Gmail email from localStorage (credential login)
+    const sessionEmail = session?.user?.email;
     const nonGmailEmail = localStorage.getItem('nonGmailEmail');
+    console.log('📧 Session email:', sessionEmail);
     console.log('📧 nonGmailEmail from localStorage:', nonGmailEmail);
     console.log('📧 Current formData.email:', formData.email);
     
-    if (nonGmailEmail && !formData.email) {
-      console.log('✅ Found nonGmailEmail and no formData.email - setting email and searching');
+    const emailToUse = sessionEmail || nonGmailEmail;
+    
+    if (emailToUse && !formData.email) {
+      console.log('✅ Found email - setting email and searching');
       setFormData(prev => ({
         ...prev,
-        email: nonGmailEmail,
-        gmail: ''  // Clear Gmail since this is a non-Gmail email
+        email: emailToUse,
+        gmail: sessionEmail ? emailToUse : ''  // Set gmail if it's from Google session
       }));
       // Search for the user's record when the component mounts
-      handleInitialSearch(nonGmailEmail);
+      handleInitialSearch(emailToUse);
     } else if (!formData.email) {
       console.log('❌ No email found - setting as new user');
       setIsLoadingUserData(false);
@@ -164,7 +170,7 @@ export default function AccessRequestForm() {
     } else {
       console.log('ℹ️ Email already set in formData:', formData.email);
     }
-  }, []); // Only run once on mount
+  }, [session]); // Add session as a dependency
 
   const handleInitialSearch = async (email: string) => {
     try {
@@ -727,7 +733,8 @@ export default function AccessRequestForm() {
       EmailValidationDate: null,
       RequestDate: mysqlDatetime,
       DeviceID: '',
-      userid: ''
+      userid: '',
+      gmail: ''
     });
     setCurrentImage('/PhotoID.jpeg');
     setImageError(false);

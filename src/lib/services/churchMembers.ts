@@ -105,7 +105,24 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
 
 export async function searchChurchMembers(email: string) {
   try {
-    const sql = `
+    // If email is empty or contains wildcard, return all records
+    const isWildcardSearch = !email || email.includes('*') || email.includes('%');
+    const sql = isWildcardSearch ? `
+      SELECT 
+        EmpID,
+        lastname,
+        firstname,
+        phone,
+        email,
+        PictureUrl,
+        EmailValidationDate,
+        RequestDate,
+        DeviceID,
+        userid
+      FROM ChurchMembers 
+      WHERE EmpID IS NOT NULL 
+      ORDER BY lastname, firstname
+    ` : `
       SELECT 
         EmpID,
         lastname,
@@ -122,9 +139,9 @@ export async function searchChurchMembers(email: string) {
     `;
     
     console.log('🔍 Executing SQL query:', sql);
-    console.log('🔍 With parameters:', [email]);
+    console.log('🔍 With parameters:', isWildcardSearch ? [] : [email]);
     
-    const result = await executeQuery<ChurchMember[]>(sql, [email]);
+    const result = await executeQuery<ChurchMember[]>(sql, isWildcardSearch ? [] : [email]);
     console.log('🔍 Raw database result:', JSON.stringify(result, null, 2));
     
     return result;

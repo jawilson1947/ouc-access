@@ -66,15 +66,9 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      const result = await signIn('google', {
-        redirect: false
+      await signIn('google', {
+        callbackUrl: '/access-request'
       });
-      
-      if (result?.ok) {
-        router.push('/access-request');
-      } else {
-        setEmailError('Google sign-in failed. Please try again.');
-      }
     } catch (error) {
       console.error('Google sign-in error:', error);
       setEmailError('An error occurred during Google sign-in.');
@@ -258,24 +252,22 @@ export default function LoginPage() {
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  margin: '16px 0'
+                  margin: '20px 0'
                 }}>
                   <div style={{ 
                     flex: 1, 
                     height: '1px', 
-                    backgroundColor: '#FFFFFF',
-                    opacity: 0.3
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)'
                   }}></div>
                   <span style={{ 
+                    margin: '0 10px', 
                     color: '#FFFFFF', 
-                    padding: '0 16px',
                     fontSize: '14px'
                   }}>or</span>
                   <div style={{ 
                     flex: 1, 
                     height: '1px', 
-                    backgroundColor: '#FFFFFF',
-                    opacity: 0.3
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)'
                   }}></div>
                 </div>
               </td>
@@ -306,6 +298,61 @@ export default function LoginPage() {
                   <GoogleIcon />
                   Continue with Google
                 </button>
+              </td>
+            </tr>
+
+            {/* Row 8: Welcome Message */}
+            <tr>
+              <td className="p-4" style={{ textAlign: 'left', paddingTop: '20px', paddingBottom: '40px' }}>
+                <div style={{ 
+                  backgroundColor: 'rgba(0, 0, 51, 0.9)',
+                  color: '#FFFFFF',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  border: '2px solid rgba(255, 255, 255, 0.8)',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  textAlign: 'left',
+                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)'
+                }}>
+                  <p style={{ margin: '0 0 15px 0', fontWeight: 'bold', fontSize: '16px', color: '#60a5fa' }}>
+                    🏛️ Welcome to OUC Facility Access
+                  </p>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '500' }}>
+                    Request secure access to Oakwood University Church facilities in just a few simple steps.
+                  </p>
+                  <div style={{ fontSize: '13px', lineHeight: '1.5' }}>
+                    <p style={{ margin: '0 0 8px 0' }}>
+                      <strong>📝 What you'll need:</strong> Full name, phone number, email, and a recent photo
+                    </p>
+                    <p style={{ margin: '0 0 8px 0' }}>
+                      <strong>🔐 Login options:</strong> Use your Gmail account or any email address
+                    </p>
+                    <p style={{ margin: '0 0 8px 0' }}>
+                      <strong>📱 Digital Key:</strong> Follow the mobile app guide for device access
+                    </p>
+                    <p style={{ margin: '0 0 12px 0' }}>
+                      <strong>💡 Easy updates:</strong> Return anytime to modify your request
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#b3b3b3' }}>
+                      <strong>Need help?</strong> Call (256) 837-1255 x199 or email ouc-it@oucsda.org
+                    </p>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            {/* Row 9: Footer */}
+            <tr>
+              <td className="p-4" style={{ textAlign: 'center' }}>
+                <p style={{ 
+                  color: '#FFFFFF', 
+                  fontSize: '14px',
+                  margin: '0',
+                  opacity: 0.8
+                }}>
+                  © {new Date().getFullYear()} Oakwood University Church. All rights reserved.
+                </p>
               </td>
             </tr>
           </tbody>

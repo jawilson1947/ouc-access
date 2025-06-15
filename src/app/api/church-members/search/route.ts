@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     const mappedMembers = members.map((member: ChurchMember) => {
       const mapped = {
         ...member,
-        PictureUrl: member.PictureUrl ? `/public/uploads/${member.PictureUrl.replace(/^\/?uploads\//, '')}` : null
+        PictureUrl: member.PictureUrl ? `/uploads/${member.PictureUrl.replace(/^\/?uploads\//, '')}` : null
       };
       console.log('📝 Mapped member:', JSON.stringify(mapped, null, 2));
       return mapped;
