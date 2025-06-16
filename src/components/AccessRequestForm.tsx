@@ -611,16 +611,6 @@ export default function AccessRequestForm() {
         const { url } = await uploadResponse.json();
         console.log('📸 Photo uploaded successfully:', url);
         PictureUrl = url;
-        
-        // Update form state with new picture URL
-        setFormData(prev => ({
-          ...prev,
-          PictureUrl: url,
-          picture: null // Clear the file after successful upload
-        }));
-        
-        // Update current image display
-        setCurrentImage(url);
       }
 
       // Format the date in MySQL format if it's in ISO format
@@ -699,8 +689,18 @@ export default function AccessRequestForm() {
       setFormData(prev => ({
         ...prev,
         EmpID: result.EmpID || prev.EmpID,
-        PictureUrl: PictureUrl || prev.PictureUrl
+        PictureUrl: PictureUrl || prev.PictureUrl,
+        picture: null // Clear the file after successful save
       }));
+
+      // Update current image display
+      if (PictureUrl) {
+        console.log('🖼️ Setting current image to:', PictureUrl);
+        setCurrentImage(PictureUrl);
+      } else {
+        console.log('🖼️ No picture URL, using default image');
+        setCurrentImage('/PhotoID.jpeg');
+      }
 
       // Determine if this is an update or new record
       const action = formData.EmpID ? 'update' : 'create';

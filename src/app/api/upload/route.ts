@@ -3,6 +3,24 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+// Function to sanitize string to only allow specific ASCII characters
+function sanitizeString(str: string): string {
+  return str
+    .split('')
+    .map(char => {
+      const code = char.charCodeAt(0);
+      // Allow A-Z (65-90), a-z (97-122), underscore (95), hyphen (45)
+      if ((code >= 65 && code <= 90) || // A-Z
+          (code >= 97 && code <= 122) || // a-z
+          code === 95 || // _
+          code === 45) { // -
+        return char;
+      }
+      return ''; // Remove any other characters
+    })
+    .join('');
+}
+
 export async function POST(req: Request) {
   try {
     console.log('📸 Upload API called');
@@ -59,8 +77,18 @@ export async function POST(req: Request) {
       extension = (originalExt === 'jpg' || originalExt === 'jpeg') ? 'jpg' : 'png';
     }
 
+    // Sanitize the name components
+    const sanitizedLastname = sanitizeString(lastname);
+    const sanitizedFirstname = sanitizeString(firstname);
+    
     // Create filename: lastname + firstname + last4digits + extension
-    const filename = `${lastname}${firstname}${last4Digits}.${extension}`;
+    const filename = `${sanitizedLastname}${sanitizedFirstname}${last4Digits}.${extension}`;
+    
+    console.log('📝 Generated filename:', {
+      original: { lastname, firstname, phone },
+      sanitized: { lastname: sanitizedLastname, firstname: sanitizedFirstname, last4Digits },
+      final: filename
+    });
     
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     const filepath = join(uploadDir, filename);
