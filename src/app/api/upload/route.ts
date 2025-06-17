@@ -95,29 +95,52 @@ export async function POST(req: Request) {
   try {
     console.log('📸 Upload API called');
     
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const lastname = formData.get('lastname') as string;
-    const firstname = formData.get('firstname') as string;
-    const phone = formData.get('phone') as string;
+    // Validate request
+    if (!req.body) {
+      console.error('❌ No request body');
+      return NextResponse.json({ error: 'No request body' }, { status: 400 });
+    }
+
+    let formData;
+    try {
+      formData = await req.formData();
+    } catch (formError: any) {
+      console.error('❌ Error parsing form data:', formError);
+      return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
+    }
+
+    const file = formData.get('file');
+    const lastname = formData.get('lastname');
+    const firstname = formData.get('firstname');
+    const phone = formData.get('phone');
     
     console.log('📸 Upload request details:', {
-      fileName: file?.name,
-      fileType: file?.type,
-      fileSize: file?.size,
+      hasFile: !!file,
+      fileName: file instanceof File ? file.name : 'N/A',
+      fileType: file instanceof File ? file.type : 'N/A',
+      fileSize: file instanceof File ? file.size : 'N/A',
       lastname,
       firstname,
       phone
     });
 
-    if (!file) {
-      console.error('❌ Upload failed: No file provided');
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    // Validate file
+    if (!file || !(file instanceof File)) {
+      console.error('❌ Upload failed: Invalid or missing file');
+      return NextResponse.json({ error: 'Invalid or missing file' }, { status: 400 });
     }
 
+    // Validate required fields
     if (!lastname || !firstname || !phone) {
       console.error('❌ Upload failed: Missing required fields');
-      return NextResponse.json({ error: 'Lastname, firstname, and phone are required' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Missing required fields',
+        details: {
+          hasLastname: !!lastname,
+          hasFirstname: !!firstname,
+          hasPhone: !!phone
+        }
+      }, { status: 400 });
     }
 
     // Validate file type
@@ -133,11 +156,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
+    let bytes;
+    try {
+      bytes = await file.arrayBuffer();
+    } catch (arrayBufferError: any) {
+      console.error('❌ Error reading file:', arrayBufferError);
+      return NextResponse.json({ error: 'Error reading file' }, { status: 400 });
+    }
+
     const buffer = new Uint8Array(bytes);
 
     // Get the last 4 digits of the phone number
-    const last4Digits = getLastFourDigits(phone);
+    const last4Digits = getLastFourDigits(phone as string);
     
     // Determine file extension based on source
     let extension: string;
@@ -153,8 +183,8 @@ export async function POST(req: Request) {
     }
 
     // Sanitize the name components
-    const sanitizedLastname = sanitizeString(lastname);
-    const sanitizedFirstname = sanitizeString(firstname);
+    const sanitizedLastname = sanitizeString(lastname as string);
+    const sanitizedFirstname = sanitizeString(firstname as string);
     
     // Create filename: lastname + firstname + last4digits + extension
     const filename = `${sanitizedLastname}${sanitizedFirstname}${last4Digits}.${extension}`;
