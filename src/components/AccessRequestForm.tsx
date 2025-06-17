@@ -94,7 +94,7 @@ export default function AccessRequestForm() {
   }, []);
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
-  const [currentImage, setCurrentImage] = useState<string>('/PhotoID.jpeg');
+  const [currentImage, setCurrentImage] = useState<string>('/uploads/PhotoID.jpeg');
   const pictureFrameRef = useRef<HTMLDivElement>(null);
 
   // Add state for handling multiple records
@@ -121,6 +121,13 @@ export default function AccessRequestForm() {
     // Reset image error state when image source changes
     setImageError(false);
   }, [currentImage]);
+
+  // Handle image loading errors
+  const handleImageError = () => {
+    console.log('❌ Image failed to load, using default image');
+    setImageError(true);
+    setCurrentImage('/uploads/PhotoID.jpeg');
+  };
 
   useEffect(() => {
     // Check all possible sources of admin email
@@ -231,16 +238,21 @@ export default function AccessRequestForm() {
         if (record.PictureUrl) {
           console.log('🖼️ Setting image:', record.PictureUrl);
           setCurrentImage(record.PictureUrl);
+        } else {
+          console.log('🖼️ No image URL in record, using default');
+          setCurrentImage('/uploads/PhotoID.jpeg');
         }
 
         setUserDataStatus('found');
       } else {
         console.log('ℹ️ No existing record found');
         setUserDataStatus('new');
+        setCurrentImage('/uploads/PhotoID.jpeg');
       }
     } catch (error) {
       console.error('❌ Search error:', error);
       setUserDataStatus('error');
+      setCurrentImage('/uploads/PhotoID.jpeg');
     } finally {
       setIsLoadingUserData(false);
     }
@@ -483,7 +495,7 @@ export default function AccessRequestForm() {
       if (record.PictureUrl) {
         setCurrentImage(record.PictureUrl);
       } else {
-        setCurrentImage('/PhotoID.jpeg');
+        setCurrentImage('/uploads/PhotoID.jpeg');
       }
 
     } catch (error) {
@@ -504,7 +516,7 @@ export default function AccessRequestForm() {
         setCurrentImage(record.PictureUrl);
         setImageError(false);
       } else {
-        setCurrentImage('/PhotoID.jpeg');
+        setCurrentImage('/uploads/PhotoID.jpeg');
         setImageError(false);
       }
 
@@ -541,7 +553,7 @@ export default function AccessRequestForm() {
         setCurrentImage(record.PictureUrl);
         setImageError(false);
       } else {
-        setCurrentImage('/PhotoID.jpeg');
+        setCurrentImage('/uploads/PhotoID.jpeg');
         setImageError(false);
       }
 
@@ -699,7 +711,7 @@ export default function AccessRequestForm() {
         setCurrentImage(PictureUrl);
       } else {
         console.log('🖼️ No picture URL, using default image');
-        setCurrentImage('/PhotoID.jpeg');
+        setCurrentImage('/uploads/PhotoID.jpeg');
       }
 
       // Determine if this is an update or new record
@@ -760,6 +772,7 @@ export default function AccessRequestForm() {
     } catch (error) {
       console.error('💥 Save error:', error);
       alert(`Failed to save record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setCurrentImage('/uploads/PhotoID.jpeg');
     } finally {
       setIsLoading(false);
     }
@@ -775,19 +788,35 @@ export default function AccessRequestForm() {
     }
 
     try {
-      const response = await fetch(`/api/church-members?EmpID=${formData.EmpID}`, {
+      setIsLoading(true);
+      console.log('🗑️ Deleting record with EmpID:', formData.EmpID);
+      
+      const response = await fetch(`/api/church-members/delete?EmpID=${formData.EmpID}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
       });
 
       if (!response.ok) {
-        throw new Error('Delete failed');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Delete failed');
       }
 
-      alert('Record deleted successfully');
-      handleNew(); // Reset form after successful delete
+      const data = await response.json();
+      if (data.success) {
+        console.log('✅ Record deleted successfully');
+        alert('Record deleted successfully');
+        handleNew(); // Reset form after successful delete
+      } else {
+        throw new Error(data.error || 'Delete failed');
+      }
     } catch (error) {
-      console.error('Delete error:', error);
-      alert('Failed to delete record');
+      console.error('❌ Delete error:', error);
+      alert(`Failed to delete record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -813,7 +842,7 @@ export default function AccessRequestForm() {
       userid: '',
       gmail: ''
     });
-    setCurrentImage('/PhotoID.jpeg');
+    setCurrentImage('/uploads/PhotoID.jpeg');
     setImageError(false);
   };
 
@@ -844,13 +873,7 @@ export default function AccessRequestForm() {
   };
 
   return (
-    <div className="min-h-screen" style={{ 
-      backgroundColor: '#000033',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '3px'
-    }}>
+    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
       {/* Loading indicator */}
       {isLoading && (
         <div style={{
@@ -1011,7 +1034,7 @@ export default function AccessRequestForm() {
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <Image
-                  src={imageError ? '/default-profile.png' : (currentImage || '/PhotoID.jpeg')}
+                  src={imageError ? '/default-profile.png' : (currentImage || '/uploads/PhotoID.jpeg')}
                   alt="User photo"
                   width={79}
                   height={79}
@@ -1021,13 +1044,7 @@ export default function AccessRequestForm() {
                     height: '100%',
                     borderRadius: '7px'
                   }}
-                  onError={(e) => {
-                    console.error('❌ Image failed to load:', currentImage);
-                    if (!imageError) {
-                      // Only set error state once to prevent infinite loops
-                      setImageError(true);
-                    }
-                  }}
+                  onError={handleImageError}
                   onLoad={() => {
                     console.log('✅ Image loaded successfully:', currentImage);
                     // Reset error state when image loads successfully
