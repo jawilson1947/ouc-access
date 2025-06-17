@@ -21,20 +21,46 @@ function sanitizeString(str: string): string {
     .join('');
 }
 
+// Function to determine if file is from mobile camera
+function isMobileCameraFile(file: File): boolean {
+  const mobileCameraNames = [
+    'image.jpg',
+    'image.jpeg',
+    'blob',
+    'image-1.jpg',
+    'image-1.jpeg',
+    'photo.jpg',
+    'photo.jpeg',
+    'IMG_',
+    'IMG-'
+  ];
+  
+  return mobileCameraNames.some(name => 
+    !file.name || 
+    file.name === name || 
+    file.name.startsWith(name)
+  );
+}
+
 export async function POST(req: Request) {
   try {
     console.log('📸 Upload API called');
     
-    // Trust that authentication is handled at the application level
-    // Since other API calls work and user can access the form, they are authenticated
-    console.log('✅ Processing upload request');
-
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const lastname = formData.get('lastname') as string;
     const firstname = formData.get('firstname') as string;
     const phone = formData.get('phone') as string;
     
+    console.log('📸 Upload request details:', {
+      fileName: file?.name,
+      fileType: file?.type,
+      fileSize: file?.size,
+      lastname,
+      firstname,
+      phone
+    });
+
     if (!file) {
       console.error('❌ Upload failed: No file provided');
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -58,8 +84,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
     }
 
-    console.log(`📷 Processing file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
-
     const bytes = await file.arrayBuffer();
     const buffer = new Uint8Array(bytes);
 
@@ -68,13 +92,15 @@ export async function POST(req: Request) {
     
     // Determine file extension based on source
     let extension: string;
-    if (!file.name || file.name === 'image.jpg' || file.name === 'image.jpeg' || file.name === 'blob') {
+    if (isMobileCameraFile(file)) {
       // Camera-captured images should be jpeg
       extension = 'jpg';
+      console.log('📸 Detected mobile camera image, using .jpg extension');
     } else {
       // For other images, use the original extension or default to png
       const originalExt = file.name.split('.').pop()?.toLowerCase();
       extension = (originalExt === 'jpg' || originalExt === 'jpeg') ? 'jpg' : 'png';
+      console.log('📸 Using original extension:', extension);
     }
 
     // Sanitize the name components
