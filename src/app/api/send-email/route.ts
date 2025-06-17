@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import sgMail from '@sendgrid/mail';
+import fs from 'fs/promises';
+import path from 'path';
 
 // SendGrid configuration
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY || process.env.SEND_GRID_API_KEY;
@@ -8,7 +10,35 @@ if (SENDGRID_API_KEY) {
 }
 
 async function sendEmailWithSendGrid(emailData: any) {
-  const { lastname, firstname, email, phone, action } = emailData;
+  const { lastname, firstname, email, phone, action, PictureUrl } = emailData;
+  
+  // Prepare attachments array
+  const attachments = [];
+  
+  // If PictureUrl exists and is in the uploads folder, attach it
+  if (PictureUrl && PictureUrl.startsWith('/uploads/')) {
+    try {
+      // Get the absolute path to the uploads directory
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      const filename = path.basename(PictureUrl);
+      const filePath = path.join(uploadsDir, filename);
+      
+      // Read the file
+      const fileContent = await fs.readFile(filePath);
+      
+      // Add to attachments
+      attachments.push({
+        content: fileContent.toString('base64'),
+        filename: filename,
+        type: filename.endsWith('.png') ? 'image/png' : 'image/jpeg',
+        disposition: 'attachment'
+      });
+      
+      console.log('📎 Photo attached to email:', filename);
+    } catch (error) {
+      console.error('❌ Failed to attach photo:', error);
+    }
+  }
   
   const msg = {
     to: process.env.NOTIFICATION_EMAIL || 'ouc-it@oucsda.org',
@@ -54,6 +84,13 @@ async function sendEmailWithSendGrid(emailData: any) {
               </tr>
             </table>
             
+            ${PictureUrl ? `
+              <div style="margin: 20px 0; text-align: center;">
+                <p style="font-weight: bold; color: #000033; margin-bottom: 10px;">📸 Photo:</p>
+                <p style="color: #666; font-size: 14px;">Photo has been attached to this email.</p>
+              </div>
+            ` : ''}
+            
             <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
               <p style="margin: 0; color: #1976d2;">
                 <strong>Action Required:</strong> Please review this access request in the OUC Access Control System.
@@ -67,6 +104,7 @@ async function sendEmailWithSendGrid(emailData: any) {
         </div>
       </div>
     `,
+    attachments
   };
 
   await sgMail.send(msg);
@@ -75,7 +113,7 @@ async function sendEmailWithSendGrid(emailData: any) {
 export async function POST(req: Request) {
   try {
     const emailData = await req.json();
-    const { lastname, firstname, email, phone, action } = emailData;
+    const { lastname, firstname, email, phone, action, PictureUrl } = emailData;
 
     // Environment check (silent)
     console.log('📧 Attempting to send email notification...');
