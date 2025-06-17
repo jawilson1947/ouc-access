@@ -724,18 +724,27 @@ export default function AccessRequestForm() {
 
           console.log('📥 Upload response received:', {
             status: uploadResponse.status,
-            statusText: uploadResponse.statusText
+            statusText: uploadResponse.statusText,
+            headers: Object.fromEntries(uploadResponse.headers.entries())
           });
 
-          if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json();
-            console.error('❌ Picture upload failed:', errorData);
-            throw new Error(errorData.error || 'Failed to upload picture');
+          let responseData;
+          const contentType = uploadResponse.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            responseData = await uploadResponse.json();
+          } else {
+            const text = await uploadResponse.text();
+            console.error('❌ Unexpected response format:', text);
+            throw new Error('Server returned invalid response format');
           }
 
-          const { url } = await uploadResponse.json();
-          console.log('✅ Picture uploaded successfully:', url);
-          PictureUrl = url;
+          if (!uploadResponse.ok) {
+            console.error('❌ Picture upload failed:', responseData);
+            throw new Error(responseData.error || 'Failed to upload picture');
+          }
+
+          console.log('✅ Picture uploaded successfully:', responseData);
+          PictureUrl = responseData.url;
         } catch (uploadError: any) {
           console.error('❌ Picture upload error:', {
             message: uploadError.message,
