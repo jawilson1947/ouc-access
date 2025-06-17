@@ -105,28 +105,6 @@ html, body {
   background-color: #000033;
 }
 
-.picture-frame {
-  border: 1px solid #ccc;
-  width: 2in;
-  height: 2in;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-}
-
-.picture-frame img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.picture-frame.drag-over {
-  border-color: #4299e1;
-  background-color: rgba(66, 153, 225, 0.1);
-}
-
 /* Hide any loading indicators */
 .loading-indicator {
   display: none !important;
