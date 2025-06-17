@@ -5,7 +5,14 @@ import { existsSync } from 'fs';
 
 // Function to sanitize string to only allow specific ASCII characters
 function sanitizeString(str: string): string {
-  return str
+  if (!str) return '';
+  
+  console.log('🔍 Sanitizing string:', {
+    input: str,
+    length: str.length
+  });
+  
+  const sanitized = str
     .split('')
     .map(char => {
       const code = char.charCodeAt(0);
@@ -19,18 +26,45 @@ function sanitizeString(str: string): string {
       return ''; // Remove any other characters
     })
     .join('');
+    
+  console.log('✨ Sanitized result:', {
+    output: sanitized,
+    length: sanitized.length
+  });
+  
+  return sanitized;
 }
 
 // Function to extract last 4 digits from phone number
 function getLastFourDigits(phone: string): string {
+  if (!phone) return '0000';
+  
+  console.log('📱 Processing phone number:', {
+    input: phone,
+    length: phone.length
+  });
+  
   // Remove all non-digit characters
   const digits = phone.replace(/\D/g, '');
+  console.log('📱 Extracted digits:', {
+    digits,
+    length: digits.length
+  });
+  
   // Get the last 4 digits, or pad with zeros if less than 4 digits
-  return digits.slice(-4).padStart(4, '0');
+  const last4 = digits.slice(-4).padStart(4, '0');
+  console.log('📱 Final last 4 digits:', {
+    last4,
+    length: last4.length
+  });
+  
+  return last4;
 }
 
 // Function to determine if file is from mobile camera
 function isMobileCameraFile(file: File): boolean {
+  if (!file || !file.name) return true; // Default to true for unnamed files
+  
   const mobileCameraNames = [
     'image.jpg',
     'image.jpeg',
@@ -43,11 +77,18 @@ function isMobileCameraFile(file: File): boolean {
     'IMG-'
   ];
   
-  return mobileCameraNames.some(name => 
+  const isMobile = mobileCameraNames.some(name => 
     !file.name || 
     file.name === name || 
     file.name.startsWith(name)
   );
+  
+  console.log('📸 Mobile camera check:', {
+    fileName: file.name,
+    isMobile
+  });
+  
+  return isMobile;
 }
 
 export async function POST(req: Request) {
@@ -97,10 +138,6 @@ export async function POST(req: Request) {
 
     // Get the last 4 digits of the phone number
     const last4Digits = getLastFourDigits(phone);
-    console.log('📱 Phone number processing:', {
-      original: phone,
-      last4Digits
-    });
     
     // Determine file extension based on source
     let extension: string;

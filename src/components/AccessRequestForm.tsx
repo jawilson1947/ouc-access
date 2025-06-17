@@ -671,6 +671,7 @@ export default function AccessRequestForm() {
 
   const handleSave = async () => {
     try {
+      console.log('🚀 Starting save process...');
       setIsLoading(true);
       setError(null);
       setSuccess(null);
@@ -679,25 +680,51 @@ export default function AccessRequestForm() {
       let PictureUrl = formData.PictureUrl;
       if (currentImage && currentImage !== formData.PictureUrl) {
         try {
-          console.log('📸 Uploading picture...');
-          const uploadFormData = new FormData();
-          uploadFormData.append('file', currentImage as File);
-          uploadFormData.append('lastname', formData.lastname);
-          uploadFormData.append('firstname', formData.firstname);
-          uploadFormData.append('phone', formData.phone);
+          console.log('📸 Starting picture upload process...', {
+            currentImageType: typeof currentImage,
+            isFile: currentImage instanceof File,
+            fileName: currentImage instanceof File ? currentImage.name : 'N/A',
+            fileType: currentImage instanceof File ? currentImage.type : 'N/A',
+            fileSize: currentImage instanceof File ? currentImage.size : 'N/A'
+          });
 
-          console.log('📸 Upload request details:', {
-            fileName: (currentImage as FileWithMetadata).name,
-            fileType: (currentImage as FileWithMetadata).type,
-            fileSize: (currentImage as FileWithMetadata).size,
+          const uploadFormData = new FormData();
+          
+          // Log the data we're about to append
+          console.log('📝 Form data to be appended:', {
             lastname: formData.lastname,
             firstname: formData.firstname,
             phone: formData.phone
           });
 
+          // Append data with error checking
+          try {
+            uploadFormData.append('file', currentImage as File);
+            console.log('✅ File appended to FormData');
+          } catch (fileError: any) {
+            console.error('❌ Error appending file:', fileError);
+            throw new Error(`Failed to append file: ${fileError.message}`);
+          }
+
+          try {
+            uploadFormData.append('lastname', formData.lastname);
+            uploadFormData.append('firstname', formData.firstname);
+            uploadFormData.append('phone', formData.phone);
+            console.log('✅ User data appended to FormData');
+          } catch (dataError: any) {
+            console.error('❌ Error appending user data:', dataError);
+            throw new Error(`Failed to append user data: ${dataError.message}`);
+          }
+
+          console.log('📤 Sending upload request...');
           const uploadResponse = await fetch('/api/upload', {
             method: 'POST',
             body: uploadFormData,
+          });
+
+          console.log('📥 Upload response received:', {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText
           });
 
           if (!uploadResponse.ok) {
@@ -710,11 +737,17 @@ export default function AccessRequestForm() {
           console.log('✅ Picture uploaded successfully:', url);
           PictureUrl = url;
         } catch (uploadError: any) {
-          console.error('❌ Picture upload error:', uploadError);
+          console.error('❌ Picture upload error:', {
+            message: uploadError.message,
+            stack: uploadError.stack,
+            name: uploadError.name
+          });
           setError(`Failed to upload picture: ${uploadError.message}`);
           setIsLoading(false);
           return;
         }
+      } else {
+        console.log('ℹ️ No new picture to upload, using existing:', PictureUrl);
       }
 
       // Format the request data
@@ -805,7 +838,11 @@ export default function AccessRequestForm() {
       }
 
     } catch (error: any) {
-      console.error('💥 Error in handleSave:', error);
+      console.error('💥 Error in handleSave:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       setError(error.message || 'An error occurred while saving the record');
     } finally {
       setIsLoading(false);
