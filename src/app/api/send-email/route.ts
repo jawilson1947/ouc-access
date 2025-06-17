@@ -10,7 +10,7 @@ if (SENDGRID_API_KEY) {
 }
 
 async function sendEmailWithSendGrid(emailData: any) {
-  const { lastname, firstname, email, phone, action, PictureUrl } = emailData;
+  const { lastname, firstname, email, phone, PictureUrl } = emailData;
   
   // Prepare attachments array
   const attachments = [];
@@ -23,6 +23,12 @@ async function sendEmailWithSendGrid(emailData: any) {
       const filename = path.basename(PictureUrl);
       const filePath = path.join(uploadsDir, filename);
       
+      console.log('📎 Attempting to attach photo:', {
+        filename,
+        filePath,
+        exists: await fs.access(filePath).then(() => true).catch(() => false)
+      });
+      
       // Read the file
       const fileContent = await fs.readFile(filePath);
       
@@ -34,10 +40,16 @@ async function sendEmailWithSendGrid(emailData: any) {
         disposition: 'attachment'
       });
       
-      console.log('📎 Photo attached to email:', filename);
-    } catch (error) {
-      console.error('❌ Failed to attach photo:', error);
+      console.log('✅ Photo attached to email:', filename);
+    } catch (error: any) {
+      console.error('❌ Failed to attach photo:', {
+        error: error.message,
+        code: error.code,
+        path: error.path
+      });
     }
+  } else {
+    console.log('ℹ️ No photo to attach or invalid PictureUrl:', PictureUrl);
   }
   
   const msg = {
@@ -46,7 +58,7 @@ async function sendEmailWithSendGrid(emailData: any) {
       email: process.env.FROM_EMAIL || 'noreply@ouctv.org',
       name: 'OUC Access System'
     },
-    subject: `OUC Access Request - ${action === 'update' ? 'Updated' : 'New'} Record`,
+    subject: `OUC Access Request - New Record`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #000033; color: white; padding: 20px; text-align: center;">
@@ -56,9 +68,7 @@ async function sendEmailWithSendGrid(emailData: any) {
         <div style="padding: 20px; background: #f8f9fa;">
           <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
             <p style="font-size: 18px; margin-bottom: 20px;">
-              A record has been <strong style="color: ${action === 'update' ? '#28a745' : '#007bff'};">
-                ${action === 'update' ? 'UPDATED' : 'CREATED'}
-              </strong>
+              A new record has been <strong style="color: #007bff;">CREATED</strong>
             </p>
             
             <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
@@ -107,16 +117,30 @@ async function sendEmailWithSendGrid(emailData: any) {
     attachments
   };
 
-  await sgMail.send(msg);
+  try {
+    await sgMail.send(msg);
+    console.log('✅ Email sent successfully with attachments:', attachments.length);
+  } catch (error: any) {
+    console.error('❌ SendGrid error:', {
+      message: error.message,
+      response: error.response?.body,
+      attachments: attachments.length
+    });
+    throw error;
+  }
 }
 
 export async function POST(req: Request) {
   try {
     const emailData = await req.json();
-    const { lastname, firstname, email, phone, action, PictureUrl } = emailData;
+    const { lastname, firstname, email, phone, PictureUrl } = emailData;
 
-    // Environment check (silent)
-    console.log('📧 Attempting to send email notification...');
+    console.log('📧 Processing email notification:', {
+      lastname,
+      firstname,
+      email,
+      hasPicture: !!PictureUrl
+    });
 
     // Validate required data
     if (!lastname && !firstname && !email) {
@@ -125,7 +149,7 @@ export async function POST(req: Request) {
 
     // Check if SendGrid is configured
     if (!SENDGRID_API_KEY) {
-      console.error('SendGrid API key not configured');
+      console.error('❌ SendGrid API key not configured');
       return NextResponse.json({ 
         success: false, 
         message: 'Email service not configured - notification skipped',
@@ -134,16 +158,18 @@ export async function POST(req: Request) {
     }
 
     try {
-      console.log('Sending email via SendGrid...');
       await sendEmailWithSendGrid(emailData);
-      console.log('Email sent successfully via SendGrid');
       
       return NextResponse.json({ 
         success: true, 
         message: 'Email notification sent successfully via SendGrid' 
       });
     } catch (error: any) {
-      console.error('SendGrid error:', error.response?.body || error.message || error);
+      console.error('❌ SendGrid error:', {
+        message: error.message,
+        response: error.response?.body,
+        code: error.code
+      });
       
       // Return success but with warning so main functionality continues
       return NextResponse.json({ 
@@ -153,7 +179,10 @@ export async function POST(req: Request) {
       }, { status: 200 }); // Return 200 instead of 500 to not break the main flow
     }
   } catch (error: any) {
-    console.error('General email error:', error.message || error);
+    console.error('❌ General email error:', {
+      message: error.message,
+      stack: error.stack
+    });
     return NextResponse.json({ 
       error: 'Failed to process email request',
       details: error.message 

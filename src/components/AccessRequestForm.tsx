@@ -33,6 +33,10 @@ interface FormData {
   userid: string;
   PictureUrl?: string;
   gmail: string;
+  IsActive: boolean;
+  IsAdmin: boolean;
+  IsChurchMember: boolean;
+  IsApproved: boolean;
 }
 
 interface RequestData {
@@ -46,6 +50,12 @@ interface RequestData {
   DeviceID: string;
   userid: string;
   EmpID?: number;
+}
+
+interface FileWithMetadata extends File {
+  name: string;
+  type: string;
+  size: number;
 }
 
 function formatMySQLDateTime(date: Date | string | null): string | null {
@@ -96,7 +106,11 @@ export default function AccessRequestForm() {
     RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
     DeviceID: '',
     userid: '',
-    gmail: ''
+    gmail: '',
+    IsActive: true,
+    IsAdmin: false,
+    IsChurchMember: false,
+    IsApproved: false
   });
 
   // Add mount logging
@@ -107,7 +121,7 @@ export default function AccessRequestForm() {
   }, []);
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
-  const [currentImage, setCurrentImage] = useState<string>('/uploads/PhotoID.jpeg');
+  const [currentImage, setCurrentImage] = useState<string | File>('/uploads/PhotoID.jpeg');
   const pictureFrameRef = useRef<HTMLDivElement>(null);
 
   // Add state for handling multiple records
@@ -644,143 +658,110 @@ export default function AccessRequestForm() {
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      
-      // Upload picture if exists
+      setError(null);
+      setSuccess(null);
+
+      // Upload picture if it exists
       let PictureUrl = formData.PictureUrl;
-      if (formData.picture) {
-        console.log('📸 Photo upload detected');
-        
-        const uploadFormData = new FormData();
-        uploadFormData.append('file', formData.picture);
-        uploadFormData.append('lastname', formData.lastname);
-        uploadFormData.append('firstname', formData.firstname);
-        uploadFormData.append('phone', formData.phone);
-        
-        console.log('📸 Uploading photo...', {
-          fileName: formData.picture.name,
-          fileSize: formData.picture.size,
-          fileType: formData.picture.type,
-          lastname: formData.lastname,
-          firstname: formData.firstname,
-          phone: formData.phone
-        });
-        
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: uploadFormData
-        });
-        
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' }));
-          console.error('📸 Upload failed:', {
-            status: uploadResponse.status,
-            statusText: uploadResponse.statusText,
-            error: errorData
+      if (currentImage && currentImage !== formData.PictureUrl) {
+        try {
+          console.log('📸 Uploading picture...');
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', currentImage as File);
+          uploadFormData.append('lastname', formData.lastname);
+          uploadFormData.append('firstname', formData.firstname);
+          uploadFormData.append('phone', formData.phone);
+
+          console.log('📸 Upload request details:', {
+            fileName: (currentImage as FileWithMetadata).name,
+            fileType: (currentImage as FileWithMetadata).type,
+            fileSize: (currentImage as FileWithMetadata).size,
+            lastname: formData.lastname,
+            firstname: formData.firstname,
+            phone: formData.phone
           });
-          throw new Error(`Failed to upload picture: ${errorData.error || uploadResponse.statusText}`);
+
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: uploadFormData,
+          });
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            console.error('❌ Picture upload failed:', errorData);
+            throw new Error(errorData.error || 'Failed to upload picture');
+          }
+
+          const { url } = await uploadResponse.json();
+          console.log('✅ Picture uploaded successfully:', url);
+          PictureUrl = url;
+        } catch (uploadError: any) {
+          console.error('❌ Picture upload error:', uploadError);
+          setError(`Failed to upload picture: ${uploadError.message}`);
+          setIsLoading(false);
+          return;
         }
-        
-        const { url } = await uploadResponse.json();
-        console.log('📸 Photo uploaded successfully:', url);
-        PictureUrl = url;
       }
 
-      // Format the date in MySQL format if it's in ISO format
-      let formattedRequestDate = formData.RequestDate;
-      if (formData.RequestDate.includes('T') || formData.RequestDate.includes('Z')) {
-        const date = new Date(formData.RequestDate);
-        formattedRequestDate = date.getFullYear() + '-' +
-          String(date.getMonth() + 1).padStart(2, '0') + '-' +
-          String(date.getDate()).padStart(2, '0') + ' ' +
-          String(date.getHours()).padStart(2, '0') + ':' +
-          String(date.getMinutes()).padStart(2, '0') + ':' +
-          String(date.getSeconds()).padStart(2, '0');
-      }
-
-      const requestData: RequestData = {
-        lastname: formData.lastname,
-        firstname: formData.firstname,
-        phone: formData.phone,
-        email: formData.email,
+      // Format the request data
+      const requestData = {
+        ...formData,
         PictureUrl,
-        EmailValidationDate: formData.EmailValidationDate,
-        RequestDate: formattedRequestDate,
-        DeviceID: formData.DeviceID,
-        userid: formData.userid
+        // Convert boolean values to strings for the API
+        IsActive: formData.IsActive ? 'true' : 'false',
+        IsAdmin: formData.IsAdmin ? 'true' : 'false',
+        IsChurchMember: formData.IsChurchMember ? 'true' : 'false',
+        IsApproved: formData.IsApproved ? 'true' : 'false',
       };
 
-      // Only include EmpID for updates
-      if (formData.EmpID !== 0) {
-        requestData.EmpID = formData.EmpID;
+      console.log('💾 Saving record:', requestData);
+
+      // Save the record
+      const response = await fetch('/api/access-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Save failed:', errorData);
+        throw new Error(errorData.error || 'Failed to save record');
       }
 
-      const method = formData.EmpID === 0 ? 'POST' : 'PUT';
-      
-      // Retry logic for database operations
-      let response;
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount < maxRetries) {
-        try {
-          console.log(`💾 Attempting to save record (attempt ${retryCount + 1}/${maxRetries})...`);
-          response = await fetch('/api/church-members', {
-            method,
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestData),
-          });
+      const savedRecord = await response.json();
+      console.log('✅ Record saved successfully:', savedRecord);
 
-          if (response.ok) {
-            console.log('✅ Record saved successfully');
-            break; // Success, exit retry loop
-          } else {
-            throw new Error(`Save failed with status: ${response.status}`);
-          }
-        } catch (error: any) {
-          retryCount++;
-          console.warn(`❌ Save attempt ${retryCount} failed:`, error.message);
-          
-          if (retryCount < maxRetries) {
-            console.log(`🔄 Retrying in ${retryCount * 1000}ms...`);
-            await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
-          } else {
-            throw error; // Final attempt failed, throw the error
-          }
-        }
-      }
-
-      if (!response || !response.ok) {
-        throw new Error('All save attempts failed');
-      }
-
-      const result = await response.json();
-      
-      // Update form state with the saved record
+      // Update form with saved record data
       setFormData(prev => ({
         ...prev,
-        EmpID: result.EmpID || prev.EmpID,
-        PictureUrl: PictureUrl || prev.PictureUrl,
-        picture: null // Clear the file after successful save
+        ...savedRecord,
+        // Convert string values back to booleans
+        IsActive: savedRecord.IsActive === 'true',
+        IsAdmin: savedRecord.IsAdmin === 'true',
+        IsChurchMember: savedRecord.IsChurchMember === 'true',
+        IsApproved: savedRecord.IsApproved === 'true',
       }));
 
-      // Update current image display
+      // Update current image state
       if (PictureUrl) {
-        console.log('🖼️ Setting current image to:', PictureUrl);
         setCurrentImage(PictureUrl);
-      } else {
-        console.log('🖼️ No picture URL, using default image');
-        setCurrentImage('/uploads/PhotoID.jpeg');
       }
 
-      // Determine if this is an update or new record
-      const action = formData.EmpID ? 'update' : 'create';
-      
-      // Send email notification with enhanced feedback
-      let emailStatus = 'unknown';
+      setSuccess('Record saved successfully');
+
+      // Send email notification
       try {
-        console.log('📧 Attempting to send email notification...');
+        console.log('📧 Sending email notification with data:', {
+          lastname: formData.lastname,
+          firstname: formData.firstname,
+          email: formData.email,
+          phone: formData.phone,
+          PictureUrl
+        });
+
         const emailResponse = await fetch('/api/send-email', {
           method: 'POST',
           headers: {
@@ -791,49 +772,27 @@ export default function AccessRequestForm() {
             firstname: formData.firstname,
             email: formData.email,
             phone: formData.phone,
-            action: action,
-            PictureUrl: PictureUrl // Include the picture URL in the email notification
+            PictureUrl
           }),
         });
 
         const emailResult = await emailResponse.json();
         
-        if (emailResponse.ok) {
-          if (emailResult.success) {
-            emailStatus = 'sent';
-            console.log('✅ Email notification sent successfully:', emailResult.message);
-          } else {
-            emailStatus = 'failed';
-            console.warn('⚠️ Email notification failed:', emailResult.message || emailResult.details);
-          }
+        if (!emailResponse.ok) {
+          console.error('❌ Email notification failed:', emailResult);
         } else {
-          emailStatus = 'failed';
-          console.warn('⚠️ Email notification failed:', emailResult.error || emailResult.message);
-          if (emailResult.configIssues) {
-            console.warn('📧 Email configuration issues:', emailResult.configIssues);
-          }
+          console.log('✅ Email notification sent successfully:', emailResult);
         }
       } catch (emailError: any) {
-        emailStatus = 'error';
-        console.error('❌ Email notification error:', emailError.message || emailError);
+        console.error('❌ Email notification error:', {
+          message: emailError.message,
+          stack: emailError.stack
+        });
       }
 
-      // Enhanced success message based on email status
-      let successMessage = 'Record saved successfully!';
-      if (emailStatus === 'sent') {
-        successMessage += '\n\n✅ Email notification sent to OUC IT.';
-      } else if (emailStatus === 'failed') {
-        successMessage += '\n\n⚠️ Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.';
-      } else if (emailStatus === 'error') {
-        successMessage += '\n\n❌ Record saved but email service unavailable.\nPlease contact OUC IT to confirm your request.';
-      }
-
-      alert(successMessage);
-      
-    } catch (error) {
-      console.error('💥 Save error:', error);
-      alert(`Failed to save record: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setCurrentImage('/uploads/PhotoID.jpeg');
+    } catch (error: any) {
+      console.error('💥 Error in handleSave:', error);
+      setError(error.message || 'An error occurred while saving the record');
     } finally {
       setIsLoading(false);
     }
@@ -901,7 +860,11 @@ export default function AccessRequestForm() {
       RequestDate: mysqlDatetime,
       DeviceID: '',
       userid: '',
-      gmail: ''
+      gmail: '',
+      IsActive: true,
+      IsAdmin: false,
+      IsChurchMember: false,
+      IsApproved: false
     });
     setCurrentImage('/uploads/PhotoID.jpeg');
     setImageError(false);
@@ -930,6 +893,15 @@ export default function AccessRequestForm() {
       console.error('Error during signout:', error);
       // If signout fails, force redirect to login
       window.location.href = '/login';
+    }
+  };
+
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCurrentImage(file);
     }
   };
 
@@ -1735,6 +1707,16 @@ export default function AccessRequestForm() {
           </div>
         </div>
       </div>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          {success}
+        </div>
+      )}
     </div>
   );
 }
