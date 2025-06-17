@@ -168,4 +168,22 @@ export async function searchChurchMembers(query: string) {
     console.error('Error in searchChurchMembers:', error);
     throw error;
   }
+}
+
+export async function deleteChurchMember(EmpID: number): Promise<boolean> {
+  return withRetry(async () => {
+    console.log('🔄 Deleting church member with EmpID:', EmpID);
+    
+    const { executeQuery } = await getDbModule();
+    
+    const result = await executeQuery<any>(
+      'DELETE FROM ChurchMembers WHERE EmpID = ?',
+      [EmpID]
+    );
+    
+    const success = result.affectedRows > 0;
+    console.log(`${success ? '✅' : '❌'} Church member deletion ${success ? 'successful' : 'failed'}`);
+    
+    return success;
+  });
 } 
