@@ -791,7 +791,8 @@ export default function AccessRequestForm() {
             firstname: formData.firstname,
             email: formData.email,
             phone: formData.phone,
-            action: action
+            action: action,
+            PictureUrl: PictureUrl // Include the picture URL in the email notification
           }),
         });
 
