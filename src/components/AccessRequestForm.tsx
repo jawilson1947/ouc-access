@@ -67,6 +67,19 @@ function formatMySQLDateTime(date: Date | string | null): string | null {
   }
 }
 
+// Helper function to sanitize string to allowed ASCII characters
+const sanitizeString = (str: string): string => {
+  return str.split('').filter(char => {
+    const code = char.charCodeAt(0);
+    return (
+      (code >= 65 && code <= 90) || // A-Z
+      (code >= 97 && code <= 122) || // a-z
+      code === 45 || // hyphen
+      code === 95 // underscore
+    );
+  }).join('');
+};
+
 export default function AccessRequestForm() {
   console.log('🎨 AccessRequestForm component mounting');
   
@@ -260,21 +273,68 @@ export default function AccessRequestForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      
+      // Generate userid when both lastname and phone are filled
+      if (name === 'lastname' || name === 'phone') {
+        const lastname = name === 'lastname' ? value : prev.lastname;
+        const phone = name === 'phone' ? value : prev.phone;
+        
+        if (lastname && phone && phone.length >= 4) {
+          // Get last 4 digits of phone number, removing any non-digit characters
+          const last4Digits = phone.replace(/\D/g, '').slice(-4);
+          // Sanitize lastname and convert to uppercase
+          const sanitizedLastname = sanitizeString(lastname).toUpperCase();
+          // Generate userid: SANITIZED_UPPERCASE(lastname) + last4Digits
+          newData.userid = sanitizedLastname + last4Digits;
+          console.log('🆔 Generated userid:', newData.userid, {
+            originalLastname: lastname,
+            sanitizedLastname,
+            last4Digits
+          });
+        }
+      }
+      
+      return newData;
+    });
   };
 
   const handlePhoneInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 10) {
-      const formatted = value.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
-      setFormData(prev => ({
-        ...prev,
-        phone: formatted
-      }));
+    const { value } = e.target;
+    // Remove any non-digit characters
+    const digitsOnly = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    let formatted = '';
+    if (digitsOnly.length > 0) {
+      formatted = '(' + digitsOnly.slice(0, 3);
+      if (digitsOnly.length > 3) {
+        formatted += ') ' + digitsOnly.slice(3, 6);
+        if (digitsOnly.length > 6) {
+          formatted += '-' + digitsOnly.slice(6, 10);
+        }
+      }
     }
+    
+    setFormData(prev => {
+      const newData = { ...prev, phone: formatted };
+      
+      // Generate userid when both lastname and phone are filled
+      if (prev.lastname && digitsOnly.length >= 4) {
+        const last4Digits = digitsOnly.slice(-4);
+        // Sanitize lastname and convert to uppercase
+        const sanitizedLastname = sanitizeString(prev.lastname).toUpperCase();
+        newData.userid = sanitizedLastname + last4Digits;
+        console.log('🆔 Generated userid:', newData.userid, {
+          originalLastname: prev.lastname,
+          sanitizedLastname,
+          last4Digits
+        });
+      }
+      
+      return newData;
+    });
   };
 
   const handleImageDrop = (e: React.DragEvent) => {
