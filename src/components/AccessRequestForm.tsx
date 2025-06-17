@@ -122,6 +122,7 @@ export default function AccessRequestForm() {
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
   const [currentImage, setCurrentImage] = useState<string | File>('/uploads/PhotoID.jpeg');
+  const [imagePreview, setImagePreview] = useState<string>('/uploads/PhotoID.jpeg');
   const pictureFrameRef = useRef<HTMLDivElement>(null);
 
   // Add state for handling multiple records
@@ -147,6 +148,19 @@ export default function AccessRequestForm() {
     console.log('🖼️ Current image state changed to:', currentImage);
     // Reset image error state when image source changes
     setImageError(false);
+  }, [currentImage]);
+
+  // Update imagePreview when currentImage changes
+  useEffect(() => {
+    if (typeof currentImage === 'string') {
+      setImagePreview(currentImage);
+    } else {
+      // If currentImage is a File, create a preview URL
+      const objectUrl = URL.createObjectURL(currentImage);
+      setImagePreview(objectUrl);
+      // Clean up the object URL when component unmounts or currentImage changes
+      return () => URL.revokeObjectURL(objectUrl);
+    }
   }, [currentImage]);
 
   // Handle image loading errors
@@ -1067,7 +1081,7 @@ export default function AccessRequestForm() {
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <Image
-                  src={imageError ? '/default-profile.png' : (currentImage || '/uploads/PhotoID.jpeg')}
+                  src={imageError ? '/default-profile.png' : imagePreview}
                   alt="User photo"
                   width={79}
                   height={79}
