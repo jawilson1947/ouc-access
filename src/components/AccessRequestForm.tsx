@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { PhotoFrame } from '@/components/PhotoFrame';
 import type { Session } from 'next-auth';
 
 interface ChurchMember {
@@ -121,10 +120,7 @@ export default function AccessRequestForm() {
   }, []);
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
-  const [currentImage, setCurrentImage] = useState<string | File>('/uploads/PhotoID.jpeg');
-  const [imagePreview, setImagePreview] = useState<string>('/uploads/PhotoID.jpeg');
-  const pictureFrameRef = useRef<HTMLDivElement>(null);
-
+  
   // Add state for handling multiple records
   const [allRecords, setAllRecords] = useState<any[]>([]);
   const [currentRecordIndex, setCurrentRecordIndex] = useState(-1);
@@ -137,37 +133,63 @@ export default function AccessRequestForm() {
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
   const [userDataStatus, setUserDataStatus] = useState<'loading' | 'found' | 'new' | 'error'>('loading');
 
-  // Add state for handling image errors
-  const [imageError, setImageError] = useState(false);
-
-  // Add ref for file input
+  const [currentImage, setCurrentImage] = useState<string | File>('/uploads/PhotoID.jpeg');
+  const [imagePreview, setImagePreview] = useState<string>('/uploads/PhotoID.jpeg');
+  const pictureFrameRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Debug currentImage changes
-  useEffect(() => {
-    console.log('🖼️ Current image state changed to:', currentImage);
-    // Reset image error state when image source changes
-    setImageError(false);
-  }, [currentImage]);
+  const [imageError, setImageError] = useState(false);
 
   // Update imagePreview when currentImage changes
   useEffect(() => {
     if (typeof currentImage === 'string') {
       setImagePreview(currentImage);
     } else {
-      // If currentImage is a File, create a preview URL
       const objectUrl = URL.createObjectURL(currentImage);
       setImagePreview(objectUrl);
-      // Clean up the object URL when component unmounts or currentImage changes
       return () => URL.revokeObjectURL(objectUrl);
     }
   }, [currentImage]);
 
   // Handle image loading errors
   const handleImageError = () => {
-    console.log('❌ Image failed to load, using default image');
-    setImageError(true);
     setCurrentImage('/uploads/PhotoID.jpeg');
+    setImagePreview('/uploads/PhotoID.jpeg');
+  };
+
+  const handleImageDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      const file = files[0];
+      
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      setFormData(prev => ({ ...prev, picture: file }));
+      setCurrentImage(file);
+    }
+  };
+
+  const handlePhotoFrameClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      const file = files[0];
+      
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      setFormData(prev => ({ ...prev, picture: file }));
+      setCurrentImage(file);
+    }
   };
 
   useEffect(() => {
@@ -198,13 +220,9 @@ export default function AccessRequestForm() {
     });
     
     if (isUserAdmin) {
-      console.log('✅ User is admin - enabling search');
       setIsSearchEnabled(true);
-    } else {
-      console.log('❌ User is not admin - disabling search');
-      setIsSearchEnabled(false);
     }
-  }, [formData.email, session]); // Add session as a dependency
+  }, [session?.user?.email, formData.email]);
 
   useEffect(() => {
     console.log('🔄 Initial search useEffect running');
@@ -268,32 +286,20 @@ export default function AccessRequestForm() {
           firstname: record.firstname,
           phone: record.phone,
           // Don't overwrite the email field - keep the login email
-          PictureUrl: record.PictureUrl,
           EmailValidationDate: record.EmailValidationDate,
           RequestDate: record.RequestDate,
           DeviceID: record.DeviceID,
           userid: record.userid
         }));
 
-        // Set current image if available
-        if (record.PictureUrl) {
-          console.log('🖼️ Setting image:', record.PictureUrl);
-          setCurrentImage(record.PictureUrl);
-        } else {
-          console.log('🖼️ No image URL in record, using default');
-          setCurrentImage('/uploads/PhotoID.jpeg');
-        }
-
         setUserDataStatus('found');
       } else {
         console.log('ℹ️ No existing record found');
         setUserDataStatus('new');
-        setCurrentImage('/uploads/PhotoID.jpeg');
       }
     } catch (error) {
       console.error('❌ Search error:', error);
       setUserDataStatus('error');
-      setCurrentImage('/uploads/PhotoID.jpeg');
     } finally {
       setIsLoadingUserData(false);
     }
@@ -365,60 +371,6 @@ export default function AccessRequestForm() {
     });
   };
 
-  const handleImageDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    
-    const files = e.dataTransfer.files;
-    if (files && files[0]) {
-      const file = files[0];
-      
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
-        return;
-      }
-      
-      setFormData(prev => ({ ...prev, picture: file }));
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCurrentImage(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Handle photo frame click - trigger file input
-  const handlePhotoFrameClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Handle file input change
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      const file = files[0];
-      
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
-        return;
-      }
-      
-      setFormData(prev => ({ ...prev, picture: file }));
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCurrentImage(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const [error, setError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<ChurchMember[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -481,7 +433,6 @@ export default function AccessRequestForm() {
           ...prev,
           ...member,
           email: prev.email, // Preserve the login email
-          PictureUrl: member.PictureUrl || '/default-avatar.png'
         }));
         setCanNavigate(false); // No navigation for single record
       } else {
@@ -492,7 +443,6 @@ export default function AccessRequestForm() {
           lastname: '',
           firstname: '',
           phone: '',
-          PictureUrl: '/default-avatar.png',
           EmailValidationDate: null,
           RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
           DeviceID: '',
@@ -571,20 +521,12 @@ export default function AccessRequestForm() {
         firstname: record.firstname || '',
         phone: record.phone || '',
         email: record.email || '', // Use the record's email
-        PictureUrl: record.PictureUrl || '',
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
         userid: record.userid || '',
         gmail: adminEmail // Store admin email in gmail field
       }));
-
-      // Update current image if available
-      if (record.PictureUrl) {
-        setCurrentImage(record.PictureUrl);
-      } else {
-        setCurrentImage('/uploads/PhotoID.jpeg');
-      }
 
     } catch (error) {
       console.error('Search error:', error);
@@ -600,28 +542,13 @@ export default function AccessRequestForm() {
       const newIndex = currentRecordIndex - 1;
       const record = allRecords[newIndex];
       
-      if (record.PictureUrl) {
-        setCurrentImage(record.PictureUrl);
-        setImageError(false);
-      } else {
-        setCurrentImage('/uploads/PhotoID.jpeg');
-        setImageError(false);
-      }
-
-      // CRITICAL: Preserve admin email during navigation
-      const currentUserEmail = formData.email;
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;;
-      const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
-
       setFormData(prevData => ({
         ...prevData,
         EmpID: record.EmpID || 0,
         lastname: record.lastname || '', // Always use the actual lastname
         firstname: record.firstname || '',
         phone: record.phone || '',
-        email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
-        picture: null,
-        PictureUrl: record.PictureUrl || undefined,
+        email: record.email || '', // Preserve admin email during navigation
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
@@ -637,28 +564,13 @@ export default function AccessRequestForm() {
       const newIndex = currentRecordIndex + 1;
       const record = allRecords[newIndex];
       
-      if (record.PictureUrl) {
-        setCurrentImage(record.PictureUrl);
-        setImageError(false);
-      } else {
-        setCurrentImage('/uploads/PhotoID.jpeg');
-        setImageError(false);
-      }
-
-      // CRITICAL: Preserve admin email during navigation
-      const currentUserEmail = formData.email;
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-      const isAdminUser = currentUserEmail === adminEmail || localStorage.getItem('nonGmailEmail') === adminEmail;
-
       setFormData(prevData => ({
         ...prevData,
         EmpID: record.EmpID || 0,
         lastname: record.lastname || '', // Always use the actual lastname
         firstname: record.firstname || '',
         phone: record.phone || '',
-        email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
-        picture: null,
-        PictureUrl: record.PictureUrl || undefined,
+        email: record.email || '', // Preserve admin email during navigation
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
@@ -671,10 +583,16 @@ export default function AccessRequestForm() {
 
   const handleSave = async () => {
     try {
-      console.log('🚀 Starting save process...');
       setIsLoading(true);
-      setError(null);
-      setSuccess(null);
+      setError('');
+      setSuccess('');
+
+      // Validate required fields
+      if (!formData.lastname || !formData.firstname || !formData.phone) {
+        setError('Lastname, firstname, and phone are required');
+        setIsLoading(false);
+        return;
+      }
 
       // Upload picture if it exists
       let PictureUrl = formData.PictureUrl;
@@ -690,80 +608,42 @@ export default function AccessRequestForm() {
 
           const uploadFormData = new FormData();
           
-          // Log the data we're about to append
-          console.log('📝 Form data to be appended:', {
-            lastname: formData.lastname,
-            firstname: formData.firstname,
-            phone: formData.phone
-          });
-
-          // Append data with error checking
           try {
             uploadFormData.append('file', currentImage as File);
-            console.log('✅ File appended to FormData');
-          } catch (fileError: any) {
-            console.error('❌ Error appending file:', fileError);
-            throw new Error(`Failed to append file: ${fileError.message}`);
-          }
-
-          try {
             uploadFormData.append('lastname', formData.lastname);
             uploadFormData.append('firstname', formData.firstname);
             uploadFormData.append('phone', formData.phone);
-            console.log('✅ User data appended to FormData');
-          } catch (dataError: any) {
-            console.error('❌ Error appending user data:', dataError);
-            throw new Error(`Failed to append user data: ${dataError.message}`);
+          } catch (formError: any) {
+            console.error('❌ Error appending form data:', formError);
+            throw new Error(`Failed to prepare upload data: ${formError.message}`);
           }
 
-          console.log('📤 Sending upload request...');
           const uploadResponse = await fetch('/api/upload', {
             method: 'POST',
             body: uploadFormData,
           });
 
-          console.log('📥 Upload response received:', {
-            status: uploadResponse.status,
-            statusText: uploadResponse.statusText,
-            headers: Object.fromEntries(uploadResponse.headers.entries())
-          });
-
-          let responseData;
-          const contentType = uploadResponse.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            responseData = await uploadResponse.json();
-          } else {
-            const text = await uploadResponse.text();
-            console.error('❌ Unexpected response format:', text);
-            throw new Error('Server returned invalid response format');
-          }
-
           if (!uploadResponse.ok) {
-            console.error('❌ Picture upload failed:', responseData);
-            throw new Error(responseData.error || 'Failed to upload picture');
+            const errorData = await uploadResponse.json();
+            console.error('❌ Picture upload failed:', errorData);
+            throw new Error(errorData.error || 'Failed to upload picture');
           }
 
-          console.log('✅ Picture uploaded successfully:', responseData);
-          PictureUrl = responseData.url;
+          const { url } = await uploadResponse.json();
+          console.log('✅ Picture uploaded successfully:', url);
+          PictureUrl = url;
         } catch (uploadError: any) {
-          console.error('❌ Picture upload error:', {
-            message: uploadError.message,
-            stack: uploadError.stack,
-            name: uploadError.name
-          });
+          console.error('❌ Picture upload error:', uploadError);
           setError(`Failed to upload picture: ${uploadError.message}`);
           setIsLoading(false);
           return;
         }
-      } else {
-        console.log('ℹ️ No new picture to upload, using existing:', PictureUrl);
       }
 
       // Format the request data
       const requestData = {
         ...formData,
         PictureUrl,
-        // Convert boolean values to strings for the API
         IsActive: formData.IsActive ? 'true' : 'false',
         IsAdmin: formData.IsAdmin ? 'true' : 'false',
         IsChurchMember: formData.IsChurchMember ? 'true' : 'false',
@@ -794,7 +674,6 @@ export default function AccessRequestForm() {
       setFormData(prev => ({
         ...prev,
         ...savedRecord,
-        // Convert string values back to booleans
         IsActive: savedRecord.IsActive === 'true',
         IsAdmin: savedRecord.IsAdmin === 'true',
         IsChurchMember: savedRecord.IsChurchMember === 'true',
@@ -808,14 +687,13 @@ export default function AccessRequestForm() {
 
       setSuccess('Record saved successfully');
 
-      // Send email notification
+      // Send email notification (without image attachment)
       try {
         console.log('📧 Sending email notification with data:', {
           lastname: formData.lastname,
           firstname: formData.firstname,
           email: formData.email,
-          phone: formData.phone,
-          PictureUrl
+          phone: formData.phone
         });
 
         const emailResponse = await fetch('/api/send-email', {
@@ -827,8 +705,7 @@ export default function AccessRequestForm() {
             lastname: formData.lastname,
             firstname: formData.firstname,
             email: formData.email,
-            phone: formData.phone,
-            PictureUrl
+            phone: formData.phone
           }),
         });
 
@@ -840,18 +717,11 @@ export default function AccessRequestForm() {
           console.log('✅ Email notification sent successfully:', emailResult);
         }
       } catch (emailError: any) {
-        console.error('❌ Email notification error:', {
-          message: emailError.message,
-          stack: emailError.stack
-        });
+        console.error('❌ Email notification error:', emailError);
       }
 
     } catch (error: any) {
-      console.error('💥 Error in handleSave:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
+      console.error('💥 Error in handleSave:', error);
       setError(error.message || 'An error occurred while saving the record');
     } finally {
       setIsLoading(false);
@@ -926,8 +796,6 @@ export default function AccessRequestForm() {
       IsChurchMember: false,
       IsApproved: false
     });
-    setCurrentImage('/uploads/PhotoID.jpeg');
-    setImageError(false);
   };
 
   const formatDate = (dateStr: string | null): string => {
@@ -957,13 +825,6 @@ export default function AccessRequestForm() {
   };
 
   const [success, setSuccess] = useState<string | null>(null);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setCurrentImage(file);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
@@ -1093,10 +954,9 @@ export default function AccessRequestForm() {
             }}></div>
           </div>
         
-          {/* Photo Section - KEEP ORIGINAL SIZE */}
+          {/* Photo Section */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
             <div style={{ position: 'relative' }}>
-              {/* Hidden file input */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1127,7 +987,7 @@ export default function AccessRequestForm() {
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <Image
-                  src={imageError ? '/default-profile.png' : imagePreview}
+                  src={imagePreview}
                   alt="User photo"
                   width={79}
                   height={79}
@@ -1138,11 +998,6 @@ export default function AccessRequestForm() {
                     borderRadius: '7px'
                   }}
                   onError={handleImageError}
-                  onLoad={() => {
-                    console.log('✅ Image loaded successfully:', currentImage);
-                    // Reset error state when image loads successfully
-                    setImageError(false);
-                  }}
                 />
               </div>
             </div>
