@@ -21,6 +21,14 @@ function sanitizeString(str: string): string {
     .join('');
 }
 
+// Function to extract last 4 digits from phone number
+function getLastFourDigits(phone: string): string {
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, '');
+  // Get the last 4 digits, or pad with zeros if less than 4 digits
+  return digits.slice(-4).padStart(4, '0');
+}
+
 // Function to determine if file is from mobile camera
 function isMobileCameraFile(file: File): boolean {
   const mobileCameraNames = [
@@ -88,7 +96,11 @@ export async function POST(req: Request) {
     const buffer = new Uint8Array(bytes);
 
     // Get the last 4 digits of the phone number
-    const last4Digits = phone.replace(/\D/g, '').slice(-4);
+    const last4Digits = getLastFourDigits(phone);
+    console.log('📱 Phone number processing:', {
+      original: phone,
+      last4Digits
+    });
     
     // Determine file extension based on source
     let extension: string;
