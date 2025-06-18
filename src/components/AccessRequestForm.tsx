@@ -145,27 +145,14 @@ export default function AccessRequestForm() {
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
   const [userDataStatus, setUserDataStatus] = useState<'loading' | 'found' | 'new' | 'error'>('loading');
 
-  const [currentImage, setCurrentImage] = useState<string>('/PhotoID.jpeg');
-  const [imagePreview, setImagePreview] = useState<string>('/uploads/PhotoID.jpeg');
+  // Simplify image state to just use PictureUrl
+  const [currentImage, setCurrentImage] = useState<string>('/uploads/PhotoID.jpeg');
   const pictureFrameRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [imageError, setImageError] = useState(false);
-
-  // Update imagePreview when currentImage changes
-  useEffect(() => {
-    if (typeof currentImage === 'string') {
-      setImagePreview(currentImage);
-    } else {
-      const objectUrl = URL.createObjectURL(currentImage);
-      setImagePreview(objectUrl);
-      return () => URL.revokeObjectURL(objectUrl);
-    }
-  }, [currentImage]);
 
   // Handle image loading errors
   const handleImageError = () => {
     setCurrentImage('/uploads/PhotoID.jpeg');
-    setImagePreview('/uploads/PhotoID.jpeg');
   };
 
   const handleImageDrop = (e: React.DragEvent) => {
@@ -1066,7 +1053,7 @@ export default function AccessRequestForm() {
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <Image
-                  src={imagePreview}
+                  src={currentImage}
                   alt="User photo"
                   width={79}
                   height={79}
