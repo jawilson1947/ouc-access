@@ -37,14 +37,11 @@ export async function GET(request: Request) {
     const members = await searchChurchMembers(query) as ChurchMember[];
     console.log('🔍 Raw database results:', JSON.stringify(members, null, 2));
     
-    // Only modify the PictureUrl path, keep all other fields exactly as they are
+    // Keep all fields exactly as they are from the database
     const mappedMembers = members.map((member: ChurchMember) => {
-      const mapped = {
-        ...member,
-        PictureUrl: member.PictureUrl ? `/uploads/${member.PictureUrl.replace(/^\/?uploads\//, '')}` : null
-      };
-      console.log('📝 Mapped member:', JSON.stringify(mapped, null, 2));
-      return mapped;
+      // No transformation needed - return the member as-is
+      console.log('📝 Mapped member:', JSON.stringify(member, null, 2));
+      return member;
     });
 
     return NextResponse.json({

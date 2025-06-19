@@ -146,13 +146,33 @@ export default function AccessRequestForm() {
   const [userDataStatus, setUserDataStatus] = useState<'loading' | 'found' | 'new' | 'error'>('loading');
 
   // Simplify image state to just use PictureUrl
-  const [currentImage, setCurrentImage] = useState<string>('/uploads/PhotoID.jpeg');
+  const [currentImage, setCurrentImage] = useState<string>('images/PhotoID.jpeg');
   const pictureFrameRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Update currentImage when formData.PictureUrl changes
+  useEffect(() => {
+    console.log('🖼️ PictureUrl changed:', {
+      PictureUrl: formData.PictureUrl,
+      currentImage: currentImage
+    });
+    
+    if (formData.PictureUrl) {
+      // Use the PictureUrl directly since it's already a relative path
+      console.log('🖼️ Setting currentImage to PictureUrl:', formData.PictureUrl);
+      setCurrentImage(formData.PictureUrl);
+    } else {
+      // Default image path in public directory
+      console.log('🖼️ Setting currentImage to default:', 'images/PhotoID.jpeg');
+      setCurrentImage('images/PhotoID.jpeg');
+    }
+  }, [formData.PictureUrl]);
+
   // Handle image loading errors
   const handleImageError = () => {
-    setCurrentImage('/uploads/PhotoID.jpeg');
+    console.log('🖼️ Image load error, setting to default');
+    // Default image path in public directory
+    setCurrentImage('images/PhotoID.jpeg');
   };
 
   const handleImageDrop = (e: React.DragEvent) => {
@@ -304,7 +324,8 @@ export default function AccessRequestForm() {
           EmailValidationDate: record.EmailValidationDate,
           RequestDate: record.RequestDate,
           DeviceID: record.DeviceID,
-          userid: record.userid
+          userid: record.userid,
+          PictureUrl: record.PictureUrl || '' // Include PictureUrl from database
         }));
 
         setUserDataStatus('found');
@@ -567,7 +588,8 @@ export default function AccessRequestForm() {
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
-        userid: record.userid || ''
+        userid: record.userid || '',
+        PictureUrl: record.PictureUrl || '' // Include PictureUrl in navigation
       }));
 
       setCurrentRecordIndex(newIndex);
@@ -589,7 +611,8 @@ export default function AccessRequestForm() {
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
-        userid: record.userid || ''
+        userid: record.userid || '',
+        PictureUrl: record.PictureUrl || '' // Include PictureUrl in navigation
       }));
 
       setCurrentRecordIndex(newIndex);
@@ -598,6 +621,24 @@ export default function AccessRequestForm() {
 
   const handleSave = async () => {
     try {
+      // Validate required fields before proceeding
+      if (!formData.lastname.trim()) {
+        alert('Last name is required');
+        return;
+      }
+      if (!formData.firstname.trim()) {
+        alert('First name is required');
+        return;
+      }
+      if (!formData.phone.trim()) {
+        alert('Phone number is required');
+        return;
+      }
+      if (!formData.email.trim()) {
+        alert('Email is required');
+        return;
+      }
+
       setIsLoading(true);
       
       // Generate userid if not already set
@@ -613,6 +654,9 @@ export default function AccessRequestForm() {
         
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.picture);
+        uploadFormData.append('lastname', formData.lastname);
+        uploadFormData.append('firstname', formData.firstname);
+        uploadFormData.append('phone', formData.phone);
         
         console.log('📸 Uploading photo...', {
           fileName: formData.picture.name,
@@ -748,6 +792,7 @@ export default function AccessRequestForm() {
             firstname: formData.firstname,
             email: formData.email,
             phone: formData.phone,
+            PictureUrl: PictureUrl,
             action: action
           }),
         });
@@ -1052,11 +1097,9 @@ export default function AccessRequestForm() {
                 onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
               >
-                <Image
+                <img
                   src={currentImage}
                   alt="User photo"
-                  width={79}
-                  height={79}
                   style={{
                     objectFit: 'cover',
                     width: '100%',
@@ -1064,6 +1107,7 @@ export default function AccessRequestForm() {
                     borderRadius: '7px'
                   }}
                   onError={handleImageError}
+                  onLoad={() => console.log('🖼️ Image loaded successfully:', currentImage)}
                 />
               </div>
             </div>

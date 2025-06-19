@@ -101,10 +101,17 @@ export async function POST(req: Request) {
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
-    
+    const lastname = formData.get('lastname') as string;
+    const firstname = formData.get('firstname') as string;
+    const phone = formData.get('phone') as string;
+
     if (!file) {
       console.error('❌ Upload failed: No file provided');
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    if (!lastname || !firstname || !phone) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     // Validate file type
@@ -125,26 +132,47 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = new Uint8Array(bytes);
 
-    // Sanitize filename - keep only alphanumeric, dots, and hyphens
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
-    const filename = sanitizedName;
+    // Generate filename using the naming convention
+    const sanitizedLastname = sanitizeString(lastname);
+    const sanitizedFirstname = sanitizeString(firstname);
+    const last4Digits = getLastFourDigits(phone);
     
-    const uploadDir = join(process.cwd(), 'public', 'uploads');
+    // Determine file extension based on file type
+    let extension = 'jpg'; // default
+    if (file.type === 'image/png') {
+      extension = 'png';
+    } else if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
+      extension = 'jpg';
+    } else if (file.type === 'image/gif') {
+      extension = 'gif';
+    }
+    
+    // Create filename: lastname + firstname + last4digits + extension
+    const filename = `${sanitizedLastname}${sanitizedFirstname}${last4Digits}.${extension}`;
+    
+    console.log('📝 Generated filename:', {
+      sanitizedLastname,
+      sanitizedFirstname,
+      last4Digits,
+      extension,
+      filename
+    });
+    
+    // Create images directory if it doesn't exist
+    const uploadDir = join(process.cwd(), 'public', 'images');
+    console.log('📁 Creating images directory...');
+    await mkdir(uploadDir, { recursive: true });
+
     const filepath = join(uploadDir, filename);
 
     console.log(`💾 Saving to: ${filepath}`);
-
-    // Ensure upload directory exists
-    if (!existsSync(uploadDir)) {
-      console.log('📁 Creating uploads directory...');
-      await mkdir(uploadDir, { recursive: true });
-    }
 
     await writeFile(filepath, buffer);
     console.log('✅ File saved successfully');
 
     // Return the URL that can be used to access the file
-    const url = `/uploads/${filename}`;
+    // Note: This URL is relative to the public directory
+    const url = `images/${filename}`;
     console.log(`🔗 File URL: ${url}`);
     
     return NextResponse.json({ url });

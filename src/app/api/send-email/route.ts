@@ -15,13 +15,13 @@ async function sendEmailWithSendGrid(emailData: any) {
   // Prepare attachments array
   const attachments = [];
   
-  // If PictureUrl exists and is in the uploads folder, attach it
-  if (PictureUrl && PictureUrl.startsWith('/uploads/')) {
+  // If PictureUrl exists and is in the images folder, attach it
+  if (PictureUrl && PictureUrl.startsWith('images/')) {
     try {
-      // Get the absolute path to the uploads directory
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+      // Get the absolute path to the images directory
+      const imagesDir = path.join(process.cwd(), 'public', 'images');
       const filename = path.basename(PictureUrl);
-      const filePath = path.join(uploadsDir, filename);
+      const filePath = path.join(imagesDir, filename);
       
       console.log('📎 Attempting to attach photo:', {
         filename,
