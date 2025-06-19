@@ -169,8 +169,11 @@ export default function AccessRequestForm() {
   }, [formData.PictureUrl]);
 
   // Handle image loading errors
-  const handleImageError = () => {
-    console.log('🖼️ Image load error, setting to default');
+  const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    console.log('🖼️ Image load error:', {
+      src: event.currentTarget.src
+    });
+    
     // Default image path in public directory
     setCurrentImage('images/PhotoID.jpeg');
   };
@@ -188,6 +191,12 @@ export default function AccessRequestForm() {
         return;
       }
       
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      
       setFormData(prev => ({ ...prev, picture: file }));
       
       const reader = new FileReader();
@@ -195,6 +204,10 @@ export default function AccessRequestForm() {
         if (event.target?.result) {
           setCurrentImage(event.target.result as string);
         }
+      };
+      reader.onerror = () => {
+        console.error('❌ File read error');
+        alert('Error reading file. Please try again.');
       };
       reader.readAsDataURL(file);
     }
@@ -215,6 +228,12 @@ export default function AccessRequestForm() {
         return;
       }
       
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('File size must be less than 10MB');
+        return;
+      }
+      
       setFormData(prev => ({ ...prev, picture: file }));
       
       const reader = new FileReader();
@@ -222,6 +241,10 @@ export default function AccessRequestForm() {
         if (event.target?.result) {
           setCurrentImage(event.target.result as string);
         }
+      };
+      reader.onerror = () => {
+        console.error('❌ File read error');
+        alert('Error reading file. Please try again.');
       };
       reader.readAsDataURL(file);
     }

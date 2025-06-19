@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import sharp from 'sharp';
 
 // Function to sanitize string to only allow specific ASCII characters
 function sanitizeString(str: string): string {
@@ -91,6 +92,88 @@ function isMobileCameraFile(file: File): boolean {
   return isMobile;
 }
 
+// Enhanced image processing with Sharp
+async function processImageWithSharp(buffer: Uint8Array, fileType: string): Promise<{ buffer: Uint8Array; format: string }> {
+  try {
+    console.log('🔄 Sharp image processing started:', {
+      originalSize: buffer.length,
+      fileType: fileType
+    });
+
+    // Create Sharp instance
+    let sharpInstance = sharp(buffer, { failOnError: false });
+
+    // Get image metadata
+    const metadata = await sharpInstance.metadata();
+    console.log('📊 Image metadata:', {
+      width: metadata.width,
+      height: metadata.height,
+      format: metadata.format,
+      hasProfile: metadata.hasProfile,
+      hasAlpha: metadata.hasAlpha,
+      orientation: metadata.orientation
+    });
+
+    // Auto-rotate based on EXIF orientation
+    sharpInstance = sharpInstance.rotate();
+
+    // Resize if image is too large (max 1920x1920)
+    if (metadata.width && metadata.height) {
+      const maxDimension = 1920;
+      if (metadata.width > maxDimension || metadata.height > maxDimension) {
+        sharpInstance = sharpInstance.resize(maxDimension, maxDimension, {
+          fit: 'inside',
+          withoutEnlargement: true
+        });
+        console.log('📏 Image resized to fit within', maxDimension, 'x', maxDimension);
+      }
+    }
+
+    // Determine output format and quality
+    let outputFormat: 'jpeg' | 'png' | 'webp' = 'jpeg';
+    let quality = 85;
+
+    if (fileType.includes('png') || fileType.includes('image/png')) {
+      outputFormat = 'png';
+      quality = 90; // PNG quality is different from JPEG
+    } else if (fileType.includes('webp') || fileType.includes('image/webp')) {
+      outputFormat = 'webp';
+      quality = 85;
+    } else {
+      // Default to JPEG for all other formats
+      outputFormat = 'jpeg';
+      quality = 85;
+    }
+
+    // Process the image
+    const processedBuffer = await sharpInstance
+      .toFormat(outputFormat, { quality })
+      .toBuffer();
+
+    console.log('✅ Sharp processing completed:', {
+      originalSize: buffer.length,
+      processedSize: processedBuffer.length,
+      compressionRatio: ((buffer.length - processedBuffer.length) / buffer.length * 100).toFixed(1) + '%',
+      outputFormat: outputFormat
+    });
+
+    return {
+      buffer: new Uint8Array(processedBuffer),
+      format: outputFormat
+    };
+
+  } catch (error) {
+    console.error('❌ Sharp processing failed:', error);
+    
+    // Fallback: return original buffer as JPEG
+    console.log('🔄 Falling back to original image format');
+    return {
+      buffer: buffer,
+      format: fileType.includes('png') ? 'png' : 'jpeg'
+    };
+  }
+}
+
 export async function POST(req: Request) {
   try {
     console.log('📸 Upload API called');
@@ -132,20 +215,16 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = new Uint8Array(bytes);
 
+    // Process image with Sharp (EXIF stripping, optimization, format standardization)
+    const { buffer: processedBuffer, format: outputFormat } = await processImageWithSharp(buffer, file.type);
+
     // Generate filename using the naming convention
     const sanitizedLastname = sanitizeString(lastname);
     const sanitizedFirstname = sanitizeString(firstname);
     const last4Digits = getLastFourDigits(phone);
     
-    // Determine file extension based on file type
-    let extension = 'jpg'; // default
-    if (file.type === 'image/png') {
-      extension = 'png';
-    } else if (file.type === 'image/jpeg' || file.type === 'image/jpg') {
-      extension = 'jpg';
-    } else if (file.type === 'image/gif') {
-      extension = 'gif';
-    }
+    // Use the processed format for the extension
+    const extension = outputFormat;
     
     // Create filename: lastname + firstname + last4digits + extension
     const filename = `${sanitizedLastname}${sanitizedFirstname}${last4Digits}.${extension}`;
@@ -167,7 +246,7 @@ export async function POST(req: Request) {
 
     console.log(`💾 Saving to: ${filepath}`);
 
-    await writeFile(filepath, buffer);
+    await writeFile(filepath, processedBuffer);
     console.log('✅ File saved successfully');
 
     // Return the URL that can be used to access the file
