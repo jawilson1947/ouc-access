@@ -1,6 +1,37 @@
 import { CreateChurchMemberInput, UpdateChurchMemberInput, ChurchMember } from '@/types/database';
 import { executeQuery } from '@/lib/db';
 
+// Function to format dates for MySQL
+function formatDateForMySQL(date: Date | string | null): string | null {
+  if (!date) return null;
+  
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    // Check if the date is valid
+    if (isNaN(dateObj.getTime())) {
+      console.warn('⚠️ Invalid date provided:', date);
+      return null;
+    }
+    
+    // Format as MySQL DATETIME: YYYY-MM-DD HH:mm:ss
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+    
+    const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    console.log('📅 Date formatting:', { input: date, output: formattedDate });
+    
+    return formattedDate;
+  } catch (error) {
+    console.error('❌ Date formatting error:', error);
+    return null;
+  }
+}
+
 // Dynamic import to handle webpack module resolution issues
 async function getDbModule() {
   try {
@@ -55,8 +86,8 @@ export async function createChurchMember(data: CreateChurchMemberInput): Promise
         data.phone,
         data.email,
         data.PictureUrl || null,
-        data.EmailValidationDate || null,
-        data.RequestDate,
+        formatDateForMySQL(data.EmailValidationDate || null),
+        formatDateForMySQL(data.RequestDate || null),
         data.DeviceID || null,
         data.userid || null
       ]
@@ -85,8 +116,8 @@ export async function updateChurchMember(data: UpdateChurchMemberInput): Promise
       data.phone,
       data.email,
       data.PictureUrl || null,
-      data.EmailValidationDate || null,
-      data.RequestDate,
+      formatDateForMySQL(data.EmailValidationDate || null),
+      formatDateForMySQL(data.RequestDate || null),
       data.DeviceID || null,
       data.userid || null,
       data.EmpID
