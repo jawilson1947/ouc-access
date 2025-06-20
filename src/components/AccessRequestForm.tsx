@@ -157,14 +157,16 @@ export default function AccessRequestForm() {
       currentImage: currentImage
     });
     
-    if (formData.PictureUrl) {
-      // Use the PictureUrl directly since it's already a relative path
-      console.log('🖼️ Setting currentImage to PictureUrl:', formData.PictureUrl);
-      setCurrentImage(formData.PictureUrl);
+    if (formData.PictureUrl && formData.PictureUrl !== '.' && formData.PictureUrl.trim() !== '') {
+      let imagePath = formData.PictureUrl.trim();
+      if (!imagePath.startsWith('http') && !imagePath.startsWith('/')) {
+        imagePath = '/' + imagePath;
+      }
+      console.log('🖼️ Setting currentImage to normalized PictureUrl:', imagePath);
+      setCurrentImage(imagePath);
     } else {
-      // Default image path in public directory
-      console.log('🖼️ Setting currentImage to default:', 'images/PhotoID.jpeg');
-      setCurrentImage('images/PhotoID.jpeg');
+      console.log('🖼️ Setting currentImage to default:', '/images/PhotoID.jpeg');
+      setCurrentImage('/images/PhotoID.jpeg');
     }
   }, [formData.PictureUrl]);
 
@@ -178,45 +180,84 @@ export default function AccessRequestForm() {
     setCurrentImage('images/PhotoID.jpeg');
   };
 
-  const handleImageDrop = (e: React.DragEvent) => {
+  // Utility to resize and compress image from a File
+  const resizeImageFile = (file: File, maxWidth: number, maxHeight: number, quality = 0.8): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = document.createElement('img');
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          img.src = event.target.result as string;
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = (maxHeight / height) * width;
+          height = maxHeight;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas rendering context not available'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const resizedFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+              resolve(resizedFile);
+            } else {
+              reject(new Error('Failed to convert canvas to blob'));
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = (err) => reject(err);
+      reader.onerror = () => reject(new Error('FileReader error'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     
     const files = e.dataTransfer.files;
     if (files && files[0]) {
       const file = files[0];
       
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
       }
-      
-      // Validate file size (50MB limit for iPhone photos)
-      const maxFileSize = 50 * 1024 * 1024; // 50MB
-      if (file.size > maxFileSize) {
-        const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
-        alert(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 50MB. 
 
-For iPhone users:
-• Try taking the photo at a lower resolution
-• Use the "Most Compatible" setting in Camera settings
-• Or compress the photo before uploading`);
-        return;
+      // Resize image if needed
+      try {
+        const resizedFile = await resizeImageFile(file, 1024, 1024, 0.7);
+        setFormData(prev => ({ ...prev, picture: resizedFile }));
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setCurrentImage(event.target.result as string);
+          }
+        };
+        reader.readAsDataURL(resizedFile);
+      } catch (err) {
+        console.error('Image resize error:', err);
+        alert('Error processing image. Please try a smaller file.');
       }
-      
-      setFormData(prev => ({ ...prev, picture: file }));
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCurrentImage(event.target.result as string);
-        }
-      };
-      reader.onerror = () => {
-        console.error('❌ File read error');
-        alert('Error reading file. Please try again.');
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -224,43 +265,31 @@ For iPhone users:
     fileInputRef.current?.click();
   };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
       const file = files[0];
       
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
       }
-      
-      // Validate file size (50MB limit for iPhone photos)
-      const maxFileSize = 50 * 1024 * 1024; // 50MB
-      if (file.size > maxFileSize) {
-        const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
-        alert(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 50MB. 
 
-For iPhone users:
-• Try taking the photo at a lower resolution
-• Use the "Most Compatible" setting in Camera settings
-• Or compress the photo before uploading`);
-        return;
+      try {
+        const resizedFile = await resizeImageFile(file, 1024, 1024, 0.7);
+        setFormData(prev => ({ ...prev, picture: resizedFile }));
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setCurrentImage(event.target.result as string);
+          }
+        };
+        reader.readAsDataURL(resizedFile);
+      } catch (err) {
+        console.error('Image resize error:', err);
+        alert('Error processing image. Please try a smaller file.');
       }
-      
-      setFormData(prev => ({ ...prev, picture: file }));
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCurrentImage(event.target.result as string);
-        }
-      };
-      reader.onerror = () => {
-        console.error('❌ File read error');
-        alert('Error reading file. Please try again.');
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -350,19 +379,27 @@ For iPhone users:
         const record = data.members[0];
         console.log('📝 Found record:', JSON.stringify(record, null, 2));
 
-        // Set form data from the database record but preserve the login email
+        // Normalize PictureUrl to ensure folder prefix and leading slash
+        let normalizedPictureUrl = '';
+        if (record.PictureUrl && record.PictureUrl !== '.' && record.PictureUrl.trim() !== '') {
+          normalizedPictureUrl = record.PictureUrl.trim();
+          if (!normalizedPictureUrl.includes('/')) {
+            normalizedPictureUrl = `images/${normalizedPictureUrl}`;
+          }
+          // Do NOT prepend a leading slash to avoid 404
+        }
+
         setFormData(prev => ({
           ...prev,
           EmpID: record.EmpID,
           lastname: record.lastname,
           firstname: record.firstname,
           phone: record.phone,
-          // Don't overwrite the email field - keep the login email
           EmailValidationDate: record.EmailValidationDate,
           RequestDate: record.RequestDate,
           DeviceID: record.DeviceID,
           userid: record.userid,
-          PictureUrl: record.PictureUrl || '' // Include PictureUrl from database
+          PictureUrl: normalizedPictureUrl
         }));
 
         setUserDataStatus('found');
@@ -713,100 +750,48 @@ For iPhone users:
       if (formData.picture) {
         console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
         
-        // Validate file size before upload (50MB limit for iPhone photos)
-        const maxFileSize = 50 * 1024 * 1024; // 50MB
-        if (formData.picture.size > maxFileSize) {
-          const sizeInMB = (formData.picture.size / (1024 * 1024)).toFixed(1);
-          throw new Error(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 50MB. 
-
-For iPhone users:
-• Try taking the photo at a lower resolution
-• Use the "Most Compatible" setting in Camera settings
-• Or compress the photo before uploading`);
-        }
+        const uploadFormData = new FormData();
+        uploadFormData.append('file', formData.picture);
+        uploadFormData.append('lastname', formData.lastname);
+        uploadFormData.append('firstname', formData.firstname);
+        uploadFormData.append('phone', formData.phone);
         
-        try {
-          const uploadFormData = new FormData();
-          uploadFormData.append('file', formData.picture);
-          uploadFormData.append('lastname', formData.lastname);
-          uploadFormData.append('firstname', formData.firstname);
-          uploadFormData.append('phone', formData.phone);
-          
-          console.log('📸 Uploading photo...', {
-            fileName: formData.picture.name,
-            fileSize: formData.picture.size,
-            fileSizeMB: (formData.picture.size / (1024 * 1024)).toFixed(2) + 'MB',
-            fileType: formData.picture.type,
-            lastModified: formData.picture.lastModified
-          });
-          
-          // Log FormData contents for debugging
-          console.log('📸 FormData contents:');
-          console.log('  file:', {
-            name: formData.picture?.name,
-            type: formData.picture?.type,
-            size: formData.picture?.size
-          });
-          console.log('  lastname:', formData.lastname);
-          console.log('  firstname:', formData.firstname);
-          console.log('  phone:', formData.phone);
-          
-          const uploadResponse = await fetch('/api/upload', {
-            method: 'POST',
-            body: uploadFormData
-          });
-          
-          console.log('📸 Upload response received:', {
+        console.log('📸 Uploading photo...', {
+          fileName: formData.picture.name,
+          fileSize: formData.picture.size,
+          fileType: formData.picture.type
+        });
+        
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: uploadFormData
+        });
+        
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' }));
+          console.error('📸 Upload failed:', {
             status: uploadResponse.status,
             statusText: uploadResponse.statusText,
-            ok: uploadResponse.ok,
-            headers: Object.fromEntries(uploadResponse.headers.entries())
+            error: errorData
           });
-          
-          if (!uploadResponse.ok) {
-            let errorMessage = 'Unknown upload error';
-            try {
-              const errorData = await uploadResponse.json();
-              console.error('📸 Upload failed - server response:', errorData);
-              errorMessage = errorData.error || errorData.details || errorData.message || uploadResponse.statusText;
-            } catch (parseError) {
-              console.error('📸 Upload failed - could not parse error response:', parseError);
-              errorMessage = `HTTP ${uploadResponse.status}: ${uploadResponse.statusText}`;
-            }
-            
-            // Provide specific guidance for common errors
-            if (uploadResponse.status === 413) {
-              errorMessage = 'File is too large. Please choose a smaller image or compress the photo before uploading.';
-            }
-            
-            throw new Error(`Failed to upload picture: ${errorMessage}`);
-          }
-          
-          const responseData = await uploadResponse.json();
-          console.log('📸 Upload response data:', responseData);
-          
-          if (!responseData.url) {
-            throw new Error('Upload succeeded but no URL returned');
-          }
-          
-          console.log('📸 Photo uploaded successfully:', responseData.url);
-          PictureUrl = responseData.url;
-          
-          // Add a small delay after photo upload to allow webpack to stabilize
-          console.log('📸 Photo uploaded, waiting briefly for system stability...');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Trigger a cache refresh to prevent webpack module resolution issues
-          try {
-            console.log('🔄 Triggering cache refresh after photo upload...');
-            // Make a small request to ensure modules are properly loaded
-            await fetch('/api/auth/session', { method: 'GET' });
-          } catch (refreshError) {
-            console.warn('⚠️ Cache refresh failed, but continuing...', refreshError);
-          }
-        } catch (uploadError) {
-          console.error('📸 Upload process failed:', uploadError);
-          throw new Error(`Upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+          throw new Error(`Failed to upload picture: ${errorData.error || uploadResponse.statusText}`);
+        }
+        
+        const { url } = await uploadResponse.json();
+        console.log('📸 Photo uploaded successfully:', url);
+        PictureUrl = url;
+        
+        // Add a small delay after photo upload to allow webpack to stabilize
+        console.log('📸 Photo uploaded, waiting briefly for system stability...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Trigger a cache refresh to prevent webpack module resolution issues
+        try {
+          console.log('🔄 Triggering cache refresh after photo upload...');
+          // Make a small request to ensure modules are properly loaded
+          await fetch('/api/auth/session', { method: 'GET' });
+        } catch (refreshError) {
+          console.warn('⚠️ Cache refresh failed, but continuing...', refreshError);
         }
       }
 
@@ -1050,49 +1035,8 @@ For iPhone users:
 
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Add mobile debugging
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-  const [showDebug, setShowDebug] = useState(false);
-
-  // Override console.log for mobile debugging
-  useEffect(() => {
-    const originalLog = console.log;
-    const originalError = console.error;
-    const originalWarn = console.warn;
-
-    console.log = (...args) => {
-      originalLog(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      setDebugLogs(prev => [...prev.slice(-9), `📝 ${message}`]);
-    };
-
-    console.error = (...args) => {
-      originalError(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      setDebugLogs(prev => [...prev.slice(-9), `❌ ${message}`]);
-    };
-
-    console.warn = (...args) => {
-      originalWarn(...args);
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      setDebugLogs(prev => [...prev.slice(-9), `⚠️ ${message}`]);
-    };
-
-    return () => {
-      console.log = originalLog;
-      console.error = originalError;
-      console.warn = originalWarn;
-    };
-  }, []);
-
   return (
-    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center items-center sm:py-12">
+    <div className="min-h-screen bg-gray-100 flex justify-center items-center" style={{ padding: '0', margin: '0', minHeight: '100vh' }}>
       {/* Loading indicator */}
       {isLoading && (
         <div style={{
@@ -1117,8 +1061,8 @@ For iPhone users:
           }}></div>
         </div>
       )}
-      
-      <div className="w-full max-w-md mx-auto px-4" style={{ padding: '0.5in' }}>
+
+      <div className="w-full max-w-md mx-auto px-4" style={{ padding: '1rem' }}>
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
@@ -1900,30 +1844,6 @@ For iPhone users:
       {success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
           {success}
-        </div>
-      )}
-
-      {/* Debug Panel */}
-      {showDebug && (
-        <div style={{
-          background: '#1a1a1a',
-          color: '#00ff00',
-          padding: '10px',
-          fontSize: '10px',
-          fontFamily: 'monospace',
-          maxHeight: '200px',
-          overflowY: 'auto',
-          borderBottom: '1px solid #333'
-        }}>
-          <div style={{ marginBottom: '5px', fontWeight: 'bold' }}>�� Debug Logs:</div>
-          {debugLogs.map((log, index) => (
-            <div key={index} style={{ marginBottom: '2px', wordBreak: 'break-all' }}>
-              {log}
-            </div>
-          ))}
-          {debugLogs.length === 0 && (
-            <div style={{ opacity: 0.5 }}>No logs yet...</div>
-          )}
         </div>
       )}
     </div>
