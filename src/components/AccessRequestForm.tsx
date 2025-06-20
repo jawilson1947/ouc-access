@@ -523,11 +523,12 @@ export default function AccessRequestForm() {
       setIsLoading(true);
       setError('');
       
-      // Get the search value from the lastname field
-      const searchValue = formData.lastname.trim();
+      // Check which field has content for searching
+      const lastnameValue = formData.lastname.trim();
+      const emailValue = formData.email.trim();
       
-      // Check if this is a wildcard search
-      const isWildcardSearch = searchValue === '*';
+      // Check if this is a wildcard search (only in lastname field)
+      const isWildcardSearch = lastnameValue === '*';
       
       // Only allow wildcard searches for admin users
       if (isWildcardSearch && !isSearchEnabled) {
@@ -535,8 +536,21 @@ export default function AccessRequestForm() {
         return;
       }
 
-      // Construct the search query
-      const query = isWildcardSearch ? '*' : `lastname:${encodeURIComponent(searchValue)}`;
+      let query = '';
+      
+      if (isWildcardSearch) {
+        // Wildcard search - return all records
+        query = '*';
+      } else if (emailValue && emailValue !== formData.gmail) {
+        // Search by email (but not the admin's own email)
+        query = `email:${encodeURIComponent(emailValue)}`;
+      } else if (lastnameValue) {
+        // Search by lastname
+        query = `lastname:${encodeURIComponent(lastnameValue)}`;
+      } else {
+        setError('Please enter a last name or email to search for');
+        return;
+      }
       
       console.log('🔍 Executing search with query:', query);
       
@@ -584,8 +598,18 @@ export default function AccessRequestForm() {
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
         userid: record.userid || '',
+        PictureUrl: record.PictureUrl || '', // Include PictureUrl from search results
         gmail: adminEmail // Store admin email in gmail field
       }));
+
+      // Update the current image if PictureUrl is available
+      if (record.PictureUrl) {
+        console.log('🖼️ Setting image from search result:', record.PictureUrl);
+        setCurrentImage(record.PictureUrl);
+      } else {
+        console.log('🖼️ No image found in search result, using default');
+        setCurrentImage('/PhotoID.jpeg');
+      }
 
     } catch (error) {
       console.error('Search error:', error);
@@ -961,7 +985,7 @@ export default function AccessRequestForm() {
   const [success, setSuccess] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
+    <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center items-center sm:py-12">
       {/* Loading indicator */}
       {isLoading && (
         <div style={{
@@ -987,7 +1011,7 @@ export default function AccessRequestForm() {
         </div>
       )}
       
-      <div style={{ width: '100%', maxWidth: '481px' }}>
+      <div className="w-full max-w-md mx-auto px-4" style={{ padding: '0.5in' }}>
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
@@ -1277,7 +1301,7 @@ export default function AccessRequestForm() {
                       width: '72px',
                       textAlign: 'right',
                       fontWeight: '600',
-                      color: '#ffffff',
+                      color: '#000033',
                       padding: '3px 8px',
                       fontSize: '9px'
                     }}>
@@ -1362,7 +1386,13 @@ export default function AccessRequestForm() {
                         type="text"
                         name="DeviceID"
                         value={formData.DeviceID}
-                        onChange={handleInputChange}
+                        onChange={(e) => {
+                          const upperValue = e.target.value.toUpperCase();
+                          setFormData(prev => ({
+                            ...prev,
+                            DeviceID: upperValue
+                          }));
+                        }}
                         style={{
                           width: '100%',
                           padding: '3px',
