@@ -4,6 +4,18 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import sharp from 'sharp';
 
+// Configure the route to handle large file uploads
+export const config = {
+  api: {
+    bodyParser: false, // Disable body parser for file uploads
+    responseLimit: false, // Disable response size limit
+  },
+};
+
+// Increase the maximum request size for this route
+export const maxDuration = 60; // 60 seconds timeout
+export const dynamic = 'force-dynamic';
+
 // Function to sanitize string to only allow specific ASCII characters
 function sanitizeString(str: string): string {
   if (!str) return '';
