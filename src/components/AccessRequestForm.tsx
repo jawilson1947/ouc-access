@@ -675,48 +675,82 @@ export default function AccessRequestForm() {
       if (formData.picture) {
         console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
         
-        const uploadFormData = new FormData();
-        uploadFormData.append('file', formData.picture);
-        uploadFormData.append('lastname', formData.lastname);
-        uploadFormData.append('firstname', formData.firstname);
-        uploadFormData.append('phone', formData.phone);
-        
-        console.log('📸 Uploading photo...', {
-          fileName: formData.picture.name,
-          fileSize: formData.picture.size,
-          fileType: formData.picture.type
-        });
-        
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: uploadFormData
-        });
-        
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' }));
-          console.error('📸 Upload failed:', {
+        try {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', formData.picture);
+          uploadFormData.append('lastname', formData.lastname);
+          uploadFormData.append('firstname', formData.firstname);
+          uploadFormData.append('phone', formData.phone);
+          
+          console.log('📸 Uploading photo...', {
+            fileName: formData.picture.name,
+            fileSize: formData.picture.size,
+            fileType: formData.picture.type,
+            lastModified: formData.picture.lastModified
+          });
+          
+          // Log FormData contents for debugging
+          console.log('📸 FormData contents:');
+          console.log('  file:', {
+            name: formData.picture?.name,
+            type: formData.picture?.type,
+            size: formData.picture?.size
+          });
+          console.log('  lastname:', formData.lastname);
+          console.log('  firstname:', formData.firstname);
+          console.log('  phone:', formData.phone);
+          
+          const uploadResponse = await fetch('/api/upload', {
+            method: 'POST',
+            body: uploadFormData
+          });
+          
+          console.log('📸 Upload response received:', {
             status: uploadResponse.status,
             statusText: uploadResponse.statusText,
-            error: errorData
+            ok: uploadResponse.ok,
+            headers: Object.fromEntries(uploadResponse.headers.entries())
           });
-          throw new Error(`Failed to upload picture: ${errorData.error || uploadResponse.statusText}`);
-        }
-        
-        const { url } = await uploadResponse.json();
-        console.log('📸 Photo uploaded successfully:', url);
-        PictureUrl = url;
-        
-        // Add a small delay after photo upload to allow webpack to stabilize
-        console.log('📸 Photo uploaded, waiting briefly for system stability...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Trigger a cache refresh to prevent webpack module resolution issues
-        try {
-          console.log('🔄 Triggering cache refresh after photo upload...');
-          // Make a small request to ensure modules are properly loaded
-          await fetch('/api/auth/session', { method: 'GET' });
-        } catch (refreshError) {
-          console.warn('⚠️ Cache refresh failed, but continuing...', refreshError);
+          
+          if (!uploadResponse.ok) {
+            let errorMessage = 'Unknown upload error';
+            try {
+              const errorData = await uploadResponse.json();
+              console.error('📸 Upload failed - server response:', errorData);
+              errorMessage = errorData.error || errorData.details || errorData.message || uploadResponse.statusText;
+            } catch (parseError) {
+              console.error('📸 Upload failed - could not parse error response:', parseError);
+              errorMessage = `HTTP ${uploadResponse.status}: ${uploadResponse.statusText}`;
+            }
+            
+            throw new Error(`Failed to upload picture: ${errorMessage}`);
+          }
+          
+          const responseData = await uploadResponse.json();
+          console.log('📸 Upload response data:', responseData);
+          
+          if (!responseData.url) {
+            throw new Error('Upload succeeded but no URL returned');
+          }
+          
+          console.log('📸 Photo uploaded successfully:', responseData.url);
+          PictureUrl = responseData.url;
+          
+          // Add a small delay after photo upload to allow webpack to stabilize
+          console.log('📸 Photo uploaded, waiting briefly for system stability...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Trigger a cache refresh to prevent webpack module resolution issues
+          try {
+            console.log('🔄 Triggering cache refresh after photo upload...');
+            // Make a small request to ensure modules are properly loaded
+            await fetch('/api/auth/session', { method: 'GET' });
+          } catch (refreshError) {
+            console.warn('⚠️ Cache refresh failed, but continuing...', refreshError);
+          }
+        } catch (uploadError) {
+          console.error('📸 Upload process failed:', uploadError);
+          throw new Error(`Upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
         }
       }
 
