@@ -25,6 +25,24 @@ const nextConfig = {
     domains: ['localhost', 'access.ouctv.org', 'ouctv.org'],
     unoptimized: true
   },
+  // Configure API routes to handle larger file uploads
+  experimental: {
+    serverComponentsExternalPackages: ['sharp']
+  },
+  // Increase body size limit for file uploads
+  async headers() {
+    return [
+      {
+        source: '/api/upload',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'multipart/form-data',
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     // Ignore system files and temp files (cross-platform)
     config.watchOptions = {

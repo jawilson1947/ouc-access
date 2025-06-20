@@ -191,9 +191,11 @@ export default function AccessRequestForm() {
         return;
       }
       
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+      // Validate file size (25MB limit for iPhone photos)
+      const maxFileSize = 25 * 1024 * 1024; // 25MB
+      if (file.size > maxFileSize) {
+        const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+        alert(`File size (${sizeInMB}MB) is too large. Please choose a smaller image (max 25MB).\n\nTip: Try taking the photo at a lower resolution or compressing it first.`);
         return;
       }
       
@@ -228,9 +230,11 @@ export default function AccessRequestForm() {
         return;
       }
       
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+      // Validate file size (25MB limit for iPhone photos)
+      const maxFileSize = 25 * 1024 * 1024; // 25MB
+      if (file.size > maxFileSize) {
+        const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
+        alert(`File size (${sizeInMB}MB) is too large. Please choose a smaller image (max 25MB).\n\nTip: Try taking the photo at a lower resolution or compressing it first.`);
         return;
       }
       
@@ -675,6 +679,13 @@ export default function AccessRequestForm() {
       if (formData.picture) {
         console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
         
+        // Validate file size before upload (25MB limit for iPhone photos)
+        const maxFileSize = 25 * 1024 * 1024; // 25MB
+        if (formData.picture.size > maxFileSize) {
+          const sizeInMB = (formData.picture.size / (1024 * 1024)).toFixed(1);
+          throw new Error(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 25MB. Please choose a smaller image.`);
+        }
+        
         try {
           const uploadFormData = new FormData();
           uploadFormData.append('file', formData.picture);
@@ -685,6 +696,7 @@ export default function AccessRequestForm() {
           console.log('📸 Uploading photo...', {
             fileName: formData.picture.name,
             fileSize: formData.picture.size,
+            fileSizeMB: (formData.picture.size / (1024 * 1024)).toFixed(2) + 'MB',
             fileType: formData.picture.type,
             lastModified: formData.picture.lastModified
           });
@@ -721,6 +733,11 @@ export default function AccessRequestForm() {
             } catch (parseError) {
               console.error('📸 Upload failed - could not parse error response:', parseError);
               errorMessage = `HTTP ${uploadResponse.status}: ${uploadResponse.statusText}`;
+            }
+            
+            // Provide specific guidance for common errors
+            if (uploadResponse.status === 413) {
+              errorMessage = 'File is too large. Please choose a smaller image or compress the photo before uploading.';
             }
             
             throw new Error(`Failed to upload picture: ${errorMessage}`);
