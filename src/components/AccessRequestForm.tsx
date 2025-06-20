@@ -191,11 +191,16 @@ export default function AccessRequestForm() {
         return;
       }
       
-      // Validate file size (25MB limit for iPhone photos)
-      const maxFileSize = 25 * 1024 * 1024; // 25MB
+      // Validate file size (50MB limit for iPhone photos)
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
       if (file.size > maxFileSize) {
         const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
-        alert(`File size (${sizeInMB}MB) is too large. Please choose a smaller image (max 25MB).\n\nTip: Try taking the photo at a lower resolution or compressing it first.`);
+        alert(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 50MB. 
+
+For iPhone users:
+• Try taking the photo at a lower resolution
+• Use the "Most Compatible" setting in Camera settings
+• Or compress the photo before uploading`);
         return;
       }
       
@@ -230,11 +235,16 @@ export default function AccessRequestForm() {
         return;
       }
       
-      // Validate file size (25MB limit for iPhone photos)
-      const maxFileSize = 25 * 1024 * 1024; // 25MB
+      // Validate file size (50MB limit for iPhone photos)
+      const maxFileSize = 50 * 1024 * 1024; // 50MB
       if (file.size > maxFileSize) {
         const sizeInMB = (file.size / (1024 * 1024)).toFixed(1);
-        alert(`File size (${sizeInMB}MB) is too large. Please choose a smaller image (max 25MB).\n\nTip: Try taking the photo at a lower resolution or compressing it first.`);
+        alert(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 50MB. 
+
+For iPhone users:
+• Try taking the photo at a lower resolution
+• Use the "Most Compatible" setting in Camera settings
+• Or compress the photo before uploading`);
         return;
       }
       
@@ -679,11 +689,16 @@ export default function AccessRequestForm() {
       if (formData.picture) {
         console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
         
-        // Validate file size before upload (25MB limit for iPhone photos)
-        const maxFileSize = 25 * 1024 * 1024; // 25MB
+        // Validate file size before upload (50MB limit for iPhone photos)
+        const maxFileSize = 50 * 1024 * 1024; // 50MB
         if (formData.picture.size > maxFileSize) {
           const sizeInMB = (formData.picture.size / (1024 * 1024)).toFixed(1);
-          throw new Error(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 25MB. Please choose a smaller image.`);
+          throw new Error(`File size (${sizeInMB}MB) exceeds the maximum allowed size of 50MB. 
+
+For iPhone users:
+• Try taking the photo at a lower resolution
+• Use the "Most Compatible" setting in Camera settings
+• Or compress the photo before uploading`);
         }
         
         try {
@@ -1010,6 +1025,47 @@ export default function AccessRequestForm() {
   };
 
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Add mobile debugging
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
+
+  // Override console.log for mobile debugging
+  useEffect(() => {
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+
+    console.log = (...args) => {
+      originalLog(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      setDebugLogs(prev => [...prev.slice(-9), `📝 ${message}`]);
+    };
+
+    console.error = (...args) => {
+      originalError(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      setDebugLogs(prev => [...prev.slice(-9), `❌ ${message}`]);
+    };
+
+    console.warn = (...args) => {
+      originalWarn(...args);
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      setDebugLogs(prev => [...prev.slice(-9), `⚠️ ${message}`]);
+    };
+
+    return () => {
+      console.log = originalLog;
+      console.error = originalError;
+      console.warn = originalWarn;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
@@ -1814,6 +1870,30 @@ export default function AccessRequestForm() {
       {success && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
           {success}
+        </div>
+      )}
+
+      {/* Debug Panel */}
+      {showDebug && (
+        <div style={{
+          background: '#1a1a1a',
+          color: '#00ff00',
+          padding: '10px',
+          fontSize: '10px',
+          fontFamily: 'monospace',
+          maxHeight: '200px',
+          overflowY: 'auto',
+          borderBottom: '1px solid #333'
+        }}>
+          <div style={{ marginBottom: '5px', fontWeight: 'bold' }}>�� Debug Logs:</div>
+          {debugLogs.map((log, index) => (
+            <div key={index} style={{ marginBottom: '2px', wordBreak: 'break-all' }}>
+              {log}
+            </div>
+          ))}
+          {debugLogs.length === 0 && (
+            <div style={{ opacity: 0.5 }}>No logs yet...</div>
+          )}
         </div>
       )}
     </div>

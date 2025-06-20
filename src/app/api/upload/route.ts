@@ -208,11 +208,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
     }
 
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Validate file size (50MB limit for iPhone photos)
+    const maxSize = 50 * 1024 * 1024; // 50MB
     if (file.size > maxSize) {
       console.error('❌ Upload failed: File too large:', file.size);
-      return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
+      return NextResponse.json({ error: 'File size must be less than 50MB' }, { status: 400 });
     }
 
     console.log(`📷 Processing file: ${file.name}, size: ${file.size} bytes, type: ${file.type}`);
