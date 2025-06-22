@@ -154,16 +154,27 @@ export default function AccessRequestForm() {
   useEffect(() => {
     console.log('🖼️ PictureUrl changed:', {
       PictureUrl: formData.PictureUrl,
-      currentImage: currentImage
+      currentImage: currentImage,
+      type: typeof formData.PictureUrl
     });
     
     if (formData.PictureUrl && formData.PictureUrl !== '.' && formData.PictureUrl.trim() !== '') {
       let imagePath = formData.PictureUrl.trim();
-      if (!imagePath.startsWith('http') && !imagePath.startsWith('/')) {
-        imagePath = '/' + imagePath;
+      
+      // Handle different path formats
+      if (imagePath.startsWith('http')) {
+        // External URL - use as is
+        console.log('🖼️ Setting currentImage to external URL:', imagePath);
+        setCurrentImage(imagePath);
+      } else {
+        // Local file path - ensure it starts with / for Next.js public directory
+        if (!imagePath.startsWith('/')) {
+          imagePath = '/' + imagePath;
+        }
+        console.log('🖼️ Setting currentImage to local path:', imagePath);
+        console.log('🖼️ Full URL will be:', window.location.origin + imagePath);
+        setCurrentImage(imagePath);
       }
-      console.log('🖼️ Setting currentImage to normalized PictureUrl:', imagePath);
-      setCurrentImage(imagePath);
     } else {
       console.log('🖼️ Setting currentImage to default:', '/images/PhotoID.jpeg');
       setCurrentImage('/images/PhotoID.jpeg');
@@ -172,12 +183,19 @@ export default function AccessRequestForm() {
 
   // Handle image loading errors
   const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const imgElement = event.currentTarget;
     console.log('🖼️ Image load error:', {
-      src: event.currentTarget.src
+      src: imgElement.src,
+      PictureUrl: formData.PictureUrl,
+      currentImage: currentImage,
+      fullUrl: imgElement.src,
+      origin: window.location.origin,
+      pathname: window.location.pathname
     });
     
     // Default image path in public directory
-    setCurrentImage('images/PhotoID.jpeg');
+    console.log('🖼️ Falling back to default image: /images/PhotoID.jpeg');
+    setCurrentImage('/images/PhotoID.jpeg');
   };
 
   // Utility to resize and compress image from a File
@@ -379,14 +397,12 @@ export default function AccessRequestForm() {
         const record = data.members[0];
         console.log('📝 Found record:', JSON.stringify(record, null, 2));
 
-        // Normalize PictureUrl to ensure folder prefix and leading slash
+        // Normalize PictureUrl to ensure proper path format
         let normalizedPictureUrl = '';
         if (record.PictureUrl && record.PictureUrl !== '.' && record.PictureUrl.trim() !== '') {
           normalizedPictureUrl = record.PictureUrl.trim();
-          if (!normalizedPictureUrl.includes('/')) {
-            normalizedPictureUrl = `images/${normalizedPictureUrl}`;
-          }
-          // Do NOT prepend a leading slash to avoid 404
+          // Don't add any prefixes - let the image rendering logic handle path formatting
+          console.log('🖼️ Normalized PictureUrl from database:', normalizedPictureUrl);
         }
 
         setFormData(prev => ({
@@ -1205,7 +1221,13 @@ export default function AccessRequestForm() {
                     borderRadius: '7px'
                   }}
                   onError={handleImageError}
-                  onLoad={() => console.log('🖼️ Image loaded successfully:', currentImage)}
+                  onLoad={() => {
+                    console.log('🖼️ Image loaded successfully:', {
+                      src: currentImage,
+                      fullUrl: window.location.origin + currentImage,
+                      PictureUrl: formData.PictureUrl
+                    });
+                  }}
                 />
               </div>
             </div>

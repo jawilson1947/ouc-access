@@ -54,3 +54,6 @@ sendgrid.env
 sendmail.js
 *.env
 !.env.example 
+#image files
+/public/images
+
