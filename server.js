@@ -1,12 +1,13 @@
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
+const fs = require('fs');
+const path = require('path');
 
 const dev = process.env.NODE_ENV !== 'production';
-// For staging server, bind to all interfaces (0.0.0.0) not localhost
 const hostname = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
-//const port = parseInt(process.env.PORT || '3000', 10);
 const port = 5000;
+
 console.log(`Starting server in ${dev ? 'development' : 'production'} mode`);
 console.log(`Binding to ${hostname}:${port}`);
 
@@ -18,8 +19,32 @@ app.prepare()
     createServer(async (req, res) => {
       try {
         const parsedUrl = parse(req.url, true);
-        
-        // Only set minimal CORS headers to avoid conflicts with NextAuth
+        const { pathname } = parsedUrl;
+
+        // 🖼️ Serve static images manually
+        if (pathname.startsWith('/images/')) {
+          const imagePath = path.join(__dirname, 'public', pathname);
+          if (fs.existsSync(imagePath)) {
+            const stream = fs.createReadStream(imagePath);
+            const ext = path.extname(imagePath).toLowerCase();
+            const contentType = {
+              '.jpg': 'image/jpeg',
+              '.jpeg': 'image/jpeg',
+              '.png': 'image/png',
+              '.gif': 'image/gif',
+              '.webp': 'image/webp'
+            }[ext] || 'application/octet-stream';
+
+            res.writeHead(200, { 'Content-Type': contentType });
+            return stream.pipe(res);
+          } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Image not found');
+            return;
+          }
+        }
+
+        // CORS preflight handling
         if (req.method === 'OPTIONS') {
           res.writeHead(200, {
             'Access-Control-Allow-Origin': '*',
@@ -30,9 +55,8 @@ app.prepare()
           return;
         }
 
-        // Set reasonable timeouts
-        req.setTimeout(60000); // 1 minute
-        res.setTimeout(60000); // 1 minute
+        req.setTimeout(60000);
+        res.setTimeout(60000);
 
         await handle(req, res, parsedUrl);
       } catch (err) {
@@ -41,7 +65,7 @@ app.prepare()
         res.end('Internal Server Error');
       }
     })
-    .setTimeout(60000) // 1 minute server timeout
+    .setTimeout(60000)
     .listen(port, hostname, (err) => {
       if (err) {
         console.error('Server failed to start:', err);
@@ -53,4 +77,4 @@ app.prepare()
   .catch((err) => {
     console.error('Failed to prepare Next.js app:', err);
     process.exit(1);
-  }); 
+  });
