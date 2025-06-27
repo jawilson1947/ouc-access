@@ -6,7 +6,7 @@ const path = require('path');
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
-const port = 5000;
+const port = 3000;
 
 console.log(`Starting server in ${dev ? 'development' : 'production'} mode`);
 console.log(`Binding to ${hostname}:${port}`);
