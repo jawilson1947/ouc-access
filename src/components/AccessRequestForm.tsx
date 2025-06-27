@@ -907,6 +907,7 @@ export default function AccessRequestForm() {
             email: formData.email,
             phone: formData.phone,
             PictureUrl: PictureUrl,
+            DeviceID: formData.DeviceID,
             action: action
           }),
         });
