@@ -58,15 +58,12 @@ interface FileWithMetadata extends File {
   size: number;
 }
 
-<<<<<<< HEAD
-=======
 interface SearchResponse {
   success: boolean;
   members: ChurchMember[];
   error?: string;
 }
 
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
 function formatMySQLDateTime(date: Date | string | null): string | null {
   if (!date) return null;
   
@@ -413,11 +410,7 @@ export default function AccessRequestForm() {
         throw new Error(`Search failed: ${response.statusText}`);
       }
 
-<<<<<<< HEAD
-      const data = await response.json();
-=======
       const data = await response.json() as SearchResponse;
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
       console.log('📥 Search response:', JSON.stringify(data, null, 2));
 
       if (data.success && data.members && data.members.length > 0) {
@@ -547,20 +540,12 @@ export default function AccessRequestForm() {
       });
 
       if (!response.ok) {
-<<<<<<< HEAD
-        const errorData = await response.json();
-=======
         const errorData = await response.json() as { error?: string };
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
         console.error('Search error:', errorData);
         throw new Error(errorData.error || 'Failed to search members');
       }
 
-<<<<<<< HEAD
-      const result = await response.json();
-=======
       const result = await response.json() as SearchResponse;
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
       console.log('🔍 Search response:', result);
 
       if (result.members && result.members.length > 0) {
@@ -643,11 +628,7 @@ export default function AccessRequestForm() {
         throw new Error(`Search failed: ${response.statusText}`);
       }
 
-<<<<<<< HEAD
-      const result = await response.json();
-=======
       const result = await response.json() as SearchResponse;
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
       console.log('📥 Search results:', result);
 
       if (!result.members || result.members.length === 0) {
@@ -815,11 +796,7 @@ export default function AccessRequestForm() {
         });
         
         if (!uploadResponse.ok) {
-<<<<<<< HEAD
-          const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' }));
-=======
           const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' })) as { error?: string };
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
           console.error('📸 Upload failed:', {
             status: uploadResponse.status,
             statusText: uploadResponse.statusText,
@@ -828,11 +805,7 @@ export default function AccessRequestForm() {
           throw new Error(`Failed to upload picture: ${errorData.error || uploadResponse.statusText}`);
         }
         
-<<<<<<< HEAD
-        const { url } = await uploadResponse.json();
-=======
         const { url } = await uploadResponse.json() as { url: string };
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
         console.log('📸 Photo uploaded successfully:', url);
         PictureUrl = url;
         
@@ -920,19 +893,11 @@ export default function AccessRequestForm() {
         throw new Error('All save attempts failed');
       }
 
-<<<<<<< HEAD
-      const result = await response.json();
-      if (method === 'POST' && result.EmpID) {
-        setFormData(prev => ({
-          ...prev,
-          EmpID: result.EmpID
-=======
       const result = await response.json() as { EmpID?: number };
       if (method === 'POST' && result.EmpID) {
         setFormData(prev => ({
           ...prev,
           EmpID: result.EmpID!
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
         }));
       }
 
@@ -959,9 +924,6 @@ export default function AccessRequestForm() {
           }),
         });
 
-<<<<<<< HEAD
-        const emailResult = await emailResponse.json();
-=======
         const emailResult = await emailResponse.json() as { 
           success?: boolean; 
           message?: string; 
@@ -969,7 +931,6 @@ export default function AccessRequestForm() {
           error?: string; 
           configIssues?: any; 
         };
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
         
         if (emailResponse.ok) {
           if (emailResult.success) {
@@ -1033,19 +994,11 @@ export default function AccessRequestForm() {
       });
 
       if (!response.ok) {
-<<<<<<< HEAD
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Delete failed');
-      }
-
-      const data = await response.json();
-=======
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' })) as { error?: string };
         throw new Error(errorData.error || 'Delete failed');
       }
 
       const data = await response.json() as { success?: boolean; error?: string };
->>>>>>> 2eae428a2380204b14d22045c2640f8cafccc650
       if (data.success) {
         console.log('✅ Record deleted successfully');
         alert('Record deleted successfully');
