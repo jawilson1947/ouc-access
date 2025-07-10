@@ -32,7 +32,6 @@ interface FormData {
   DeviceID: string;
   userid: string;
   PictureUrl?: string;
-  gmail: string;
   IsActive: boolean;
   IsAdmin: boolean;
   IsChurchMember: boolean;
@@ -130,7 +129,6 @@ export default function AccessRequestForm() {
     RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
     DeviceID: '',
     userid: '',
-    gmail: '',
     IsActive: true,
     IsAdmin: false,
     IsChurchMember: false,
@@ -1034,7 +1032,6 @@ export default function AccessRequestForm() {
       RequestDate: mysqlDatetime,
       DeviceID: '',
       userid: '',
-      gmail: '',
       IsActive: true,
       IsAdmin: isAdmin,
       IsChurchMember: false,
