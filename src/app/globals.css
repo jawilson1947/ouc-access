@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import OUC Theme */
+@import '../styles/theme.css';
+
+/* Set daisyUI theme */
+html {
+  data-theme: 'ouc';
+}
+
+/* Global Styles */
+body {
+  font-family: var(--font-family-primary);
+  background: var(--gradient-primary);
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* DaisyUI + OUC Theme Integration */
+.daisy-btn-primary {
+  @apply bg-primary text-primary-content border-primary;
+}
+
+.daisy-input-primary {
+  @apply border-primary focus:border-accent;
+}
+
+.daisy-card-primary {
+  @apply bg-base-100 text-base-content border border-primary/30;
+}
+
+/* Override some Tailwind defaults with theme variables */
+.text-primary { color: var(--color-text-primary) !important; }
+.text-secondary { color: var(--color-text-secondary) !important; }
+.text-muted { color: var(--color-text-muted) !important; }
+.bg-primary { background: var(--color-primary) !important; }
+.bg-gradient-primary { background: var(--gradient-primary) !important; }
+.border-primary { border-color: var(--color-border-primary) !important; }
+
+/* DaisyUI Component Customizations for OUC */
+.btn {
+  @apply font-semibold transition-all duration-200;
+}
+
+.btn:hover {
+  @apply transform scale-105;
+}
+
+.input {
+  @apply backdrop-blur-sm;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.input:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+}
+
+.card {
+  @apply backdrop-blur-sm;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.modal-box {
+  @apply backdrop-blur-sm;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.navbar {
+  background: var(--color-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.footer {
+  background: var(--color-primary);
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 0, 0, 51;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  min-height: 100vh;
+}
+
+/* Ensure the background color extends to the full height */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #000033;
+}
+
+/* Hide any loading indicators */
+.loading-indicator {
+  display: none !important;
+}
+
+/* Ensure modals don't show unexpectedly */
+.modal-overlay {
+  display: none !important;
+} 
