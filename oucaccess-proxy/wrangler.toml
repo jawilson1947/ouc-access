@@ -1,7 +1,0 @@
-name = "oucaccess-proxy"
-type = "javascript"  # or "webpack" or "module" if applicable
-compatibility_date = "2025-07-09"
-
-[build]
-upload.format = "modules"
-upload.main = "index.ts"
