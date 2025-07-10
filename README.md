@@ -1,4 +1,4 @@
-# OUC Access Control System
+# OUC Facility Access Request System
 
 A full-stack Next.js application for managing user access requests with Google authentication.
 
@@ -23,7 +23,7 @@ npm install
 
 3. Create a `.env.local` file in the root directory with the following content:
 ```env
-MYSQL_HOST=192.168.72.250
+MYSQL_HOST=127.0.0.1
 MYSQL_USER=ouc-it
 MYSQL_PASSWORD=Y&U*i9o0p
 MYSQL_DATABASE=oucsda
@@ -32,7 +32,7 @@ MYSQL_DATABASE=oucsda
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://access.oucsda.org
 NEXTAUTH_SECRET=your_nextauth_secret # Generate a secure random string
 ```
 
@@ -69,19 +69,19 @@ The application will be available at `http://localhost:3000`.
 
 ## Deployment
 
-To deploy to the Ubuntu development server:
+To deploy to the Bluehost Centos 7 server:
 
 1. SSH into the server:
 ```bash
-ssh jawilson@192.168.72.250
+ssh zdogrxmy@162.144.105.50 /Y+
 ```
 
 2. Navigate to the deployment directory:
 ```bash
-cd /home/jawilson/fullstack-app
+cd /var/www/oucaccess
 ```
 
-3. Clone the repository and install dependencies:
+3. all steps in docker container (see DockerFile):
 ```bash
 git clone <repository-url> .
 npm install
@@ -113,7 +113,6 @@ CREATE TABLE ChurchMembers (
   request_date datetime NOT NULL,
   device_id varchar(50) DEFAULT NULL,
   user_id varchar(50) DEFAULT NULL,
-  gmail varchar(80) DEFAULT NULL,
   created_at timestamp DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
