@@ -22,7 +22,7 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
-    domains: ['localhost', 'access.ouctv.org', 'ouctv.org'],
+    domains: ['localhost', 'access.oucsda.org'],
     unoptimized: true
   },
   // Configure API routes to handle larger file uploads
