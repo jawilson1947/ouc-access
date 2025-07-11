@@ -1,0 +1,61 @@
+ Docker Compose Setup for React App in Docker
+
+## 1. Create `docker-compose.yml`
+```yaml
+version: '3.8'
+
+services:
+  oucaccess:
+    image: oucaccess-image:latest
+    container_name: oucaccess-container
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - .env.local:/app/.env.local
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge
+```
+
+---
+
+## 2. Build Docker Image with Compose
+```bash
+docker compose build
+```
+
+---
+
+## 3. Start Container in Background
+```bash
+docker compose up -d
+```
+
+---
+
+## 4. Verify Everything
+```bash
+docker compose ps
+```
+Make sure your container is running on port 3000.
+
+---
+
+## 5. Check Logs
+```bash
+docker compose logs -f
+```
+
+---
+
+## Benefits of Docker Compose
+- Declarative config (`docker-compose.yml`)
+- Easier orchestration of multi-container setups
+- Built-in restart policies
+- Cross-platform support

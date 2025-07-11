@@ -5,7 +5,8 @@ const next = require('next');
 const dev = process.env.NODE_ENV !== 'production';
 // For staging server, bind to all interfaces (0.0.0.0) not localhost
 const hostname = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
-const port = parseInt(process.env.PORT || '3000', 10);
+//const port = parseInt(process.env.PORT || '3000', 10);
+const port = 5000;
 console.log(`Starting server in ${dev ? 'development' : 'production'} mode`);
 console.log(`Binding to ${hostname}:${port}`);
 
