@@ -30,7 +30,7 @@ RUN npm ci --omit=dev
 
 # 10. Copy built output and other needed assets
 COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
+# COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/.env.local ./

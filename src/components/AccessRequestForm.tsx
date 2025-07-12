@@ -184,9 +184,14 @@ export default function AccessRequestForm() {
         if (!imagePath.startsWith('/')) {
           imagePath = '/' + imagePath;
         }
-        console.log('🖼️ Setting currentImage to local path:', imagePath);
-        console.log('🖼️ Full URL will be:', window.location.origin + imagePath);
-        setCurrentImage(imagePath);
+        
+        // Add cache-busting parameter to prevent browser caching
+        const timestamp = Date.now();
+        const cacheBustedPath = `${imagePath}?t=${timestamp}`;
+        
+        console.log('🖼️ Setting currentImage to local path:', cacheBustedPath);
+        console.log('🖼️ Full URL will be:', window.location.origin + cacheBustedPath);
+        setCurrentImage(cacheBustedPath);
       }
     } else {
       console.log('🖼️ Setting currentImage to default:', '/images/PhotoID.jpeg');
@@ -672,7 +677,10 @@ export default function AccessRequestForm() {
       // Update the current image if PictureUrl is available
       if (record.PictureUrl) {
         console.log('🖼️ Setting image from search result:', record.PictureUrl);
-        setCurrentImage(record.PictureUrl);
+        // Add cache-busting parameter to prevent browser caching
+        const timestamp = Date.now();
+        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+        setCurrentImage(cacheBustedPath);
       } else {
         console.log('🖼️ No image found in search result, using default');
         setCurrentImage('/PhotoID.jpeg');
@@ -712,6 +720,13 @@ export default function AccessRequestForm() {
         IsAdmin: isAdminUser // Preserve admin status
       }));
 
+      // Update current image with cache-busting if PictureUrl is available
+      if (record.PictureUrl) {
+        const timestamp = Date.now();
+        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+        setCurrentImage(cacheBustedPath);
+      }
+
       setCurrentRecordIndex(newIndex);
     }
   };
@@ -740,6 +755,13 @@ export default function AccessRequestForm() {
         PictureUrl: record.PictureUrl || '', // Include PictureUrl in navigation
         IsAdmin: isAdminUser // Preserve admin status
       }));
+
+      // Update current image with cache-busting if PictureUrl is available
+      if (record.PictureUrl) {
+        const timestamp = Date.now();
+        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+        setCurrentImage(cacheBustedPath);
+      }
 
       setCurrentRecordIndex(newIndex);
     }
