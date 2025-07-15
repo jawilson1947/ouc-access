@@ -180,24 +180,68 @@ export default function AccessRequestForm() {
         console.log('🖼️ Setting currentImage to external URL:', imagePath);
         setCurrentImage(imagePath);
       } else {
-        // Local file path - ensure it starts with / for Next.js public directory
-        if (!imagePath.startsWith('/')) {
-          imagePath = '/' + imagePath;
+        // Local file path - extract filename and use direct image serving
+        const filename = imagePath.split('/').pop();
+        if (filename) {
+          console.log('🖼️ Setting currentImage to direct image serving:', filename);
+          // Use the new direct image serving API
+          setCurrentImage(`/api/images/${filename}`);
+        } else {
+          console.log('🖼️ Invalid image path, using default');
+          setCurrentImage('/api/images/PhotoID.jpeg');
         }
-        
-        // Add cache-busting parameter to prevent browser caching
-        const timestamp = Date.now();
-        const cacheBustedPath = `${imagePath}?t=${timestamp}`;
-        
-        console.log('🖼️ Setting currentImage to local path:', cacheBustedPath);
-        console.log('🖼️ Full URL will be:', window.location.origin + cacheBustedPath);
-        setCurrentImage(cacheBustedPath);
       }
     } else {
-      console.log('🖼️ Setting currentImage to default:', '/images/PhotoID.jpeg');
-      setCurrentImage('/images/PhotoID.jpeg');
+      console.log('🖼️ Setting currentImage to default');
+      setCurrentImage('/api/images/PhotoID.jpeg');
     }
   }, [formData.PictureUrl]);
+
+  // Function to validate image availability
+  const validateImageAvailability = async (imagePath: string) => {
+    try {
+      console.log('🔍 Validating image availability:', imagePath);
+      
+      // Extract filename from the image path
+      const filename = imagePath.split('/').pop();
+      if (!filename) {
+        console.error('❌ Invalid image path:', imagePath);
+        setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+        return;
+      }
+      
+      // First, check if the image exists using the API
+      const checkResponse = await fetch('/api/images/serve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename })
+      });
+      
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json();
+        console.log('🔍 Image availability check:', checkData);
+        
+        if (checkData.exists && checkData.accessible) {
+          console.log('✅ Image is available, using serve API');
+          const serveUrl = `/api/images/serve?filename=${encodeURIComponent(filename)}`;
+          setCurrentImage(serveUrl);
+        } else {
+          console.log('⚠️ Image not available, using fallback');
+          setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+        }
+      } else {
+        console.log('⚠️ Image check failed, using fallback');
+        setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+      }
+      
+    } catch (error) {
+      console.error('❌ Image validation failed:', error);
+      // Fallback to default image
+      setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+    }
+  };
 
   // Handle image loading errors
   const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
@@ -211,9 +255,9 @@ export default function AccessRequestForm() {
       pathname: window.location.pathname
     });
     
-    // Default image path in public directory
-    console.log('🖼️ Falling back to default image: /images/PhotoID.jpeg');
-    setCurrentImage('/images/PhotoID.jpeg');
+    // Default image path using the serve API
+    console.log('🖼️ Falling back to default image via serve API');
+    setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
   };
 
   // Utility to resize and compress image from a File
@@ -677,13 +721,17 @@ export default function AccessRequestForm() {
       // Update the current image if PictureUrl is available
       if (record.PictureUrl) {
         console.log('🖼️ Setting image from search result:', record.PictureUrl);
-        // Add cache-busting parameter to prevent browser caching
-        const timestamp = Date.now();
-        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
-        setCurrentImage(cacheBustedPath);
+        const filename = record.PictureUrl.split('/').pop();
+        if (filename) {
+          // Use the new direct image serving API with cache busting
+          const timestamp = Date.now();
+          setCurrentImage(`/api/images/${filename}?t=${timestamp}`);
+        } else {
+          setCurrentImage('/api/images/PhotoID.jpeg');
+        }
       } else {
         console.log('🖼️ No image found in search result, using default');
-        setCurrentImage('/PhotoID.jpeg');
+        setCurrentImage('/api/images/PhotoID.jpeg');
       }
 
     } catch (error) {
@@ -722,9 +770,11 @@ export default function AccessRequestForm() {
 
       // Update current image with cache-busting if PictureUrl is available
       if (record.PictureUrl) {
-        const timestamp = Date.now();
-        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
-        setCurrentImage(cacheBustedPath);
+        const filename = record.PictureUrl.split('/').pop();
+        if (filename) {
+          const timestamp = Date.now();
+          setCurrentImage(`/api/images/${filename}?t=${timestamp}`);
+        }
       }
 
       setCurrentRecordIndex(newIndex);
@@ -758,9 +808,11 @@ export default function AccessRequestForm() {
 
       // Update current image with cache-busting if PictureUrl is available
       if (record.PictureUrl) {
-        const timestamp = Date.now();
-        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
-        setCurrentImage(cacheBustedPath);
+        const filename = record.PictureUrl.split('/').pop();
+        if (filename) {
+          const timestamp = Date.now();
+          setCurrentImage(`/api/images/${filename}?t=${timestamp}`);
+        }
       }
 
       setCurrentRecordIndex(newIndex);
