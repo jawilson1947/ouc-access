@@ -180,20 +180,16 @@ export default function AccessRequestForm() {
         console.log('🖼️ Setting currentImage to external URL:', imagePath);
         setCurrentImage(imagePath);
       } else {
-        // Local file path - extract filename and use direct image serving
-        const filename = imagePath.split('/').pop();
-        if (filename) {
-          console.log('🖼️ Setting currentImage to direct image serving:', filename);
-          // Use the new direct image serving API
-          setCurrentImage(`/api/images/${filename}`);
-        } else {
-          console.log('🖼️ Invalid image path, using default');
-          setCurrentImage('/api/images/PhotoID.jpeg');
+        // Local file path - ensure it starts with / for public folder access
+        if (!imagePath.startsWith('/')) {
+          imagePath = '/' + imagePath;
         }
+        console.log('🖼️ Setting currentImage to public folder path:', imagePath);
+        setCurrentImage(imagePath);
       }
     } else {
       console.log('🖼️ Setting currentImage to default');
-      setCurrentImage('/api/images/PhotoID.jpeg');
+      setCurrentImage('/images/PhotoID.jpeg');
     }
   }, [formData.PictureUrl]);
 
@@ -255,9 +251,9 @@ export default function AccessRequestForm() {
       pathname: window.location.pathname
     });
     
-    // Default image path using the serve API
-    console.log('🖼️ Falling back to default image via serve API');
-    setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+    // Default image path using standard public folder
+    console.log('🖼️ Falling back to default image');
+    setCurrentImage('/images/PhotoID.jpeg');
   };
 
   // Utility to resize and compress image from a File
@@ -721,17 +717,13 @@ export default function AccessRequestForm() {
       // Update the current image if PictureUrl is available
       if (record.PictureUrl) {
         console.log('🖼️ Setting image from search result:', record.PictureUrl);
-        const filename = record.PictureUrl.split('/').pop();
-        if (filename) {
-          // Use the new direct image serving API with cache busting
-          const timestamp = Date.now();
-          setCurrentImage(`/api/images/${filename}?t=${timestamp}`);
-        } else {
-          setCurrentImage('/api/images/PhotoID.jpeg');
-        }
+        // Add cache-busting parameter to prevent browser caching
+        const timestamp = Date.now();
+        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+        setCurrentImage(cacheBustedPath);
       } else {
         console.log('🖼️ No image found in search result, using default');
-        setCurrentImage('/api/images/PhotoID.jpeg');
+        setCurrentImage('/images/PhotoID.jpeg');
       }
 
     } catch (error) {
@@ -770,11 +762,9 @@ export default function AccessRequestForm() {
 
       // Update current image with cache-busting if PictureUrl is available
       if (record.PictureUrl) {
-        const filename = record.PictureUrl.split('/').pop();
-        if (filename) {
-          const timestamp = Date.now();
-          setCurrentImage(`/api/images/${filename}?t=${timestamp}`);
-        }
+        const timestamp = Date.now();
+        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+        setCurrentImage(cacheBustedPath);
       }
 
       setCurrentRecordIndex(newIndex);
@@ -808,11 +798,9 @@ export default function AccessRequestForm() {
 
       // Update current image with cache-busting if PictureUrl is available
       if (record.PictureUrl) {
-        const filename = record.PictureUrl.split('/').pop();
-        if (filename) {
-          const timestamp = Date.now();
-          setCurrentImage(`/api/images/${filename}?t=${timestamp}`);
-        }
+        const timestamp = Date.now();
+        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+        setCurrentImage(cacheBustedPath);
       }
 
       setCurrentRecordIndex(newIndex);
