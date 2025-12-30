@@ -67,11 +67,11 @@ interface SearchResponse {
 
 function formatMySQLDateTime(date: Date | string | null): string | null {
   if (!date) return null;
-  
+
   try {
     const d = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(d.getTime())) return null; // Invalid date
-    
+
     return d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' +
       String(d.getDate()).padStart(2, '0') + ' ' +
@@ -87,10 +87,10 @@ function formatMySQLDateTime(date: Date | string | null): string | null {
 function generateUserId(lastname: string, phone: string): string {
   // Get uppercase lastname
   const lastnamePart = lastname.toUpperCase();
-  
+
   // Get last 4 digits of phone number
   const phoneDigits = phone.replace(/\D/g, '').slice(-4);
-  
+
   // Combine parts
   return `${lastnamePart}${phoneDigits}`;
 }
@@ -117,7 +117,7 @@ const isUserAdmin = (userEmail: string | null | undefined): boolean => {
 
 export default function AccessRequestForm() {
   console.log('🎨 AccessRequestForm component mounting');
-  
+
   const router = useRouter();
   const { data: session, status } = useSession();
   const [formData, setFormData] = useState<FormData>({
@@ -147,7 +147,7 @@ export default function AccessRequestForm() {
   }, []);
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
-  
+
   // Add state for handling multiple records
   const [allRecords, setAllRecords] = useState<any[]>([]);
   const [currentRecordIndex, setCurrentRecordIndex] = useState(-1);
@@ -155,7 +155,7 @@ export default function AccessRequestForm() {
 
   // Add a loading state
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Add state for initial data loading
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
   const [userDataStatus, setUserDataStatus] = useState<'loading' | 'found' | 'new' | 'error'>('loading');
@@ -172,10 +172,10 @@ export default function AccessRequestForm() {
       currentImage: currentImage,
       type: typeof formData.PictureUrl
     });
-    
+
     if (formData.PictureUrl && formData.PictureUrl !== '.' && formData.PictureUrl.trim() !== '') {
       let imagePath = formData.PictureUrl.trim();
-      
+
       // Handle different path formats
       if (imagePath.startsWith('http')) {
         // External URL - use as is
@@ -199,7 +199,7 @@ export default function AccessRequestForm() {
   const validateImageAvailability = async (imagePath: string) => {
     try {
       console.log('🔍 Validating image availability:', imagePath);
-      
+
       // Extract filename from the image path
       const filename = imagePath.split('/').pop();
       if (!filename) {
@@ -207,7 +207,7 @@ export default function AccessRequestForm() {
         setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
         return;
       }
-      
+
       // First, check if the image exists using the API
       const checkResponse = await fetch('/api/images/serve', {
         method: 'POST',
@@ -216,11 +216,11 @@ export default function AccessRequestForm() {
         },
         body: JSON.stringify({ filename })
       });
-      
+
       if (checkResponse.ok) {
         const checkData = await checkResponse.json();
         console.log('🔍 Image availability check:', checkData);
-        
+
         if (checkData.exists && checkData.accessible) {
           console.log('✅ Image is available, using serve API');
           const serveUrl = `/api/images/serve?filename=${encodeURIComponent(filename)}`;
@@ -233,7 +233,7 @@ export default function AccessRequestForm() {
         console.log('⚠️ Image check failed, using fallback');
         setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
       }
-      
+
     } catch (error) {
       console.error('❌ Image validation failed:', error);
       // Fallback to default image
@@ -247,13 +247,13 @@ export default function AccessRequestForm() {
     if (imagePath.includes('/api/images/serve')) {
       return imagePath;
     }
-    
+
     // Extract filename from path
     const filename = imagePath.split('/').pop();
     if (filename) {
       return `/api/images/serve?filename=${encodeURIComponent(filename)}`;
     }
-    
+
     return imagePath;
   };
 
@@ -267,7 +267,7 @@ export default function AccessRequestForm() {
       fullUrl: imgElement.src,
       origin: window.location.origin
     });
-    
+
     // Try API route if direct path failed
     if (!imgElement.src.includes('/api/images/serve')) {
       const apiRoute = convertToApiRoute(imgElement.src);
@@ -332,11 +332,11 @@ export default function AccessRequestForm() {
 
   const handleImageDrop = async (e: React.DragEvent) => {
     e.preventDefault();
-    
+
     const files = e.dataTransfer.files;
     if (files && files[0]) {
       const file = files[0];
-      
+
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
@@ -369,7 +369,7 @@ export default function AccessRequestForm() {
     const files = e.target.files;
     if (files && files[0]) {
       const file = files[0];
-      
+
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
         return;
@@ -399,15 +399,15 @@ export default function AccessRequestForm() {
     const sessionEmail = session?.user?.email;
     const userEmailFromForm = formData.email;
     const userEmailFromStorage = localStorage.getItem('nonGmailEmail');
-    
+
     // Check if any of the user's email sources match any admin email
     const isSessionAdmin = isUserAdmin(sessionEmail);
     const isFormAdmin = isUserAdmin(userEmailFromForm);
     const isStorageAdmin = isUserAdmin(userEmailFromStorage);
-    
+
     // User is admin if any of the email sources match any admin email
     const isUserAdminStatus = isSessionAdmin || isFormAdmin || isStorageAdmin;
-    
+
     console.log('🔍 ADMIN STATE CHECK:', {
       sessionEmail,
       userEmailFromForm,
@@ -418,14 +418,14 @@ export default function AccessRequestForm() {
       isUserAdminStatus,
       finalDecision: `Admin status: ${isUserAdminStatus ? 'ENABLED' : 'DISABLED'}`
     });
-    
+
     // Set both isAdmin state and formData.IsAdmin field
     setIsAdmin(isUserAdminStatus);
     setFormData(prev => ({
       ...prev,
       IsAdmin: isUserAdminStatus
     }));
-    
+
     // Enable search functionality for admin users
     if (isUserAdminStatus) {
       setIsSearchEnabled(true);
@@ -440,9 +440,9 @@ export default function AccessRequestForm() {
     console.log('📧 Session email:', sessionEmail);
     console.log('📧 nonGmailEmail from localStorage:', nonGmailEmail);
     console.log('📧 Current formData.email:', formData.email);
-    
+
     const emailToUse = sessionEmail || nonGmailEmail;
-    
+
     if (emailToUse && !formData.email) {
       console.log('✅ Found email - setting email and searching');
       setFormData(prev => ({
@@ -525,18 +525,18 @@ export default function AccessRequestForm() {
     const { name, value } = e.target;
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
-      
+
       // Special handling for email field - update both displayEmail and email
       if (name === 'email') {
         newData.displayEmail = value;
         newData.email = value;
       }
-      
+
       // Generate userid when both lastname and phone are filled
       if (name === 'lastname' || name === 'phone') {
         const lastname = name === 'lastname' ? value : prev.lastname;
         const phone = name === 'phone' ? value : prev.phone;
-        
+
         if (lastname && phone && phone.length >= 4) {
           // Get last 4 digits of phone number, removing any non-digit characters
           const last4Digits = phone.replace(/\D/g, '').slice(-4);
@@ -551,7 +551,7 @@ export default function AccessRequestForm() {
           });
         }
       }
-      
+
       return newData;
     });
   };
@@ -560,7 +560,7 @@ export default function AccessRequestForm() {
     const { value } = e.target;
     // Remove any non-digit characters
     const digitsOnly = value.replace(/\D/g, '');
-    
+
     // Format as (XXX) XXX-XXXX
     let formatted = '';
     if (digitsOnly.length > 0) {
@@ -572,10 +572,10 @@ export default function AccessRequestForm() {
         }
       }
     }
-    
+
     setFormData(prev => {
       const newData = { ...prev, phone: formatted };
-      
+
       // Generate userid when both lastname and phone are filled
       if (prev.lastname && digitsOnly.length >= 4) {
         const last4Digits = digitsOnly.slice(-4);
@@ -588,7 +588,7 @@ export default function AccessRequestForm() {
           last4Digits
         });
       }
-      
+
       return newData;
     });
   };
@@ -662,14 +662,14 @@ export default function AccessRequestForm() {
     try {
       setIsLoading(true);
       setError('');
-      
+
       // Check which field has content for searching
       const lastnameValue = formData.lastname.trim();
       const emailValue = formData.email.trim();
-      
+
       // Check if this is a wildcard search (only in lastname field)
       const isWildcardSearch = lastnameValue === '*';
-      
+
       // Only allow wildcard searches for admin users
       if (isWildcardSearch && !isAdmin) {
         setError('Wildcard searches are only allowed for admin users');
@@ -677,7 +677,7 @@ export default function AccessRequestForm() {
       }
 
       let query = '';
-      
+
       if (isWildcardSearch) {
         // Wildcard search - return all records
         query = '*';
@@ -691,9 +691,9 @@ export default function AccessRequestForm() {
         setError('Please enter a last name or email to search for');
         return;
       }
-      
+
       console.log('🔍 Executing search with query:', query);
-      
+
       const response = await fetch(`/api/church-members/search?query=${query}`, {
         headers: {
           'Authorization': `Bearer ${session?.user?.accessToken}`
@@ -722,12 +722,12 @@ export default function AccessRequestForm() {
 
       // Get the first record
       const record = result.members[0];
-      
+
       // Store admin email before updating form
       const currentUserEmail = formData.email;
       const storedEmail = localStorage.getItem('nonGmailEmail');
       const isAdminUser = isUserAdmin(currentUserEmail) || isUserAdmin(storedEmail);
-      
+
       // Update form with the record data
       setFormData(prev => ({
         ...prev,
@@ -749,19 +749,15 @@ export default function AccessRequestForm() {
       // Update the current image if PictureUrl is available
       if (record.PictureUrl) {
         console.log('🖼️ Setting image from search result:', record.PictureUrl);
-        
+
         // Check if this is a problematic file that needs API route
         const filename = record.PictureUrl.split('/').pop();
-        if (filename === 'MannKimberly4331.jpeg') {
-          // Use API route for problematic files
-          const apiUrl = `/api/images/serve?filename=${encodeURIComponent(filename)}`;
-          setCurrentImage(apiUrl);
-        } else {
-          // Use direct path with cache-busting for working files
-          const timestamp = Date.now();
-          const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
-          setCurrentImage(cacheBustedPath);
-        }
+
+        // Use direct path with cache-busting for all files
+        // The handleImageError function will automatically fallback to API route if direct loading fails
+        const timestamp = Date.now();
+        const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+        setCurrentImage(cacheBustedPath);
       } else {
         console.log('🖼️ No image found in search result, using default');
         setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
@@ -780,12 +776,12 @@ export default function AccessRequestForm() {
     if (currentRecordIndex > 0) {
       const newIndex = currentRecordIndex - 1;
       const record = allRecords[newIndex];
-      
+
       // Preserve admin email and status during navigation
       const currentUserEmail = formData.email;
       const storedEmail = localStorage.getItem('nonGmailEmail');
       const isAdminUser = isUserAdmin(currentUserEmail) || isUserAdmin(storedEmail);
-      
+
       setFormData(prevData => ({
         ...prevData,
         EmpID: record.EmpID || 0,
@@ -826,12 +822,12 @@ export default function AccessRequestForm() {
     if (currentRecordIndex < allRecords.length - 1) {
       const newIndex = currentRecordIndex + 1;
       const record = allRecords[newIndex];
-      
+
       // Preserve admin email and status during navigation
       const currentUserEmail = formData.email;
       const storedEmail = localStorage.getItem('nonGmailEmail');
       const isAdminUser = isUserAdmin(currentUserEmail) || isUserAdmin(storedEmail);
-      
+
       setFormData(prevData => ({
         ...prevData,
         EmpID: record.EmpID || 0,
@@ -889,7 +885,7 @@ export default function AccessRequestForm() {
       }
 
       setIsLoading(true);
-      
+
       // Generate userid if not already set
       if (!formData.userid) {
         const generatedUserId = generateUserId(formData.lastname, formData.phone);
@@ -900,24 +896,24 @@ export default function AccessRequestForm() {
       let PictureUrl = formData.PictureUrl;
       if (formData.picture) {
         console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
-        
+
         const uploadFormData = new FormData();
         uploadFormData.append('file', formData.picture);
         uploadFormData.append('lastname', formData.lastname);
         uploadFormData.append('firstname', formData.firstname);
         uploadFormData.append('phone', formData.phone);
-        
+
         console.log('📸 Uploading photo...', {
           fileName: formData.picture.name,
           fileSize: formData.picture.size,
           fileType: formData.picture.type
         });
-        
+
         const uploadResponse = await fetch('/api/upload', {
           method: 'POST',
           body: uploadFormData
         });
-        
+
         if (!uploadResponse.ok) {
           const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' })) as { error?: string };
           console.error('📸 Upload failed:', {
@@ -927,15 +923,15 @@ export default function AccessRequestForm() {
           });
           throw new Error(`Failed to upload picture: ${errorData.error || uploadResponse.statusText}`);
         }
-        
+
         const { url } = await uploadResponse.json() as { url: string };
         console.log('📸 Photo uploaded successfully:', url);
         PictureUrl = url;
-        
+
         // Add a small delay after photo upload to allow webpack to stabilize
         console.log('📸 Photo uploaded, waiting briefly for system stability...');
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         // Trigger a cache refresh to prevent webpack module resolution issues
         try {
           console.log('🔄 Triggering cache refresh after photo upload...');
@@ -976,12 +972,12 @@ export default function AccessRequestForm() {
       }
 
       const method = formData.EmpID === 0 ? 'POST' : 'PUT';
-      
+
       // Retry logic for database operations
       let response;
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (retryCount < maxRetries) {
         try {
           console.log(`💾 Attempting to save record (attempt ${retryCount + 1}/${maxRetries})...`);
@@ -1002,7 +998,7 @@ export default function AccessRequestForm() {
         } catch (error: any) {
           retryCount++;
           console.warn(`❌ Save attempt ${retryCount} failed:`, error.message);
-          
+
           if (retryCount < maxRetries) {
             console.log(`🔄 Retrying in ${retryCount * 1000}ms...`);
             await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
@@ -1026,7 +1022,7 @@ export default function AccessRequestForm() {
 
       // Determine if this is an update or new record
       const action = formData.EmpID ? 'update' : 'create';
-      
+
       // Send email notification with enhanced feedback
       let emailStatus = 'unknown';
       try {
@@ -1047,14 +1043,14 @@ export default function AccessRequestForm() {
           }),
         });
 
-        const emailResult = await emailResponse.json() as { 
-          success?: boolean; 
-          message?: string; 
-          details?: string; 
-          error?: string; 
-          configIssues?: any; 
+        const emailResult = await emailResponse.json() as {
+          success?: boolean;
+          message?: string;
+          details?: string;
+          error?: string;
+          configIssues?: any;
         };
-        
+
         if (emailResponse.ok) {
           if (emailResult.success) {
             emailStatus = 'sent';
@@ -1086,7 +1082,7 @@ export default function AccessRequestForm() {
       }
 
       alert(successMessage);
-      
+
     } catch (error) {
       console.error('💥 Save error:', error);
       alert(`Failed to save record: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1107,7 +1103,7 @@ export default function AccessRequestForm() {
     try {
       setIsLoading(true);
       console.log('🗑️ Deleting record with EmpID:', formData.EmpID);
-      
+
       const response = await fetch(`/api/church-members/delete?EmpID=${formData.EmpID}`, {
         method: 'DELETE',
         headers: {
@@ -1178,7 +1174,7 @@ export default function AccessRequestForm() {
     try {
       // Clear the non-Gmail email from localStorage if it exists
       localStorage.removeItem('nonGmailEmail');
-      
+
       // Sign out using the new NextAuth v5 syntax
       await signOut({
         redirect: true,
@@ -1249,7 +1245,7 @@ export default function AccessRequestForm() {
             }}>
               Facility Access Request System
             </p>
-            
+
             {/* User Data Status Indicator */}
             {isLoadingUserData ? (
               <div style={{
@@ -1311,7 +1307,7 @@ export default function AccessRequestForm() {
                 🆕 Welcome! Please fill out your information below.
               </div>
             ) : null}
-            
+
             <div style={{
               width: '35px',
               height: '3px',
@@ -1320,7 +1316,7 @@ export default function AccessRequestForm() {
               borderRadius: '3px'
             }}></div>
           </div>
-        
+
           {/* Photo Section */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
             <div style={{ position: 'relative' }}>
@@ -1331,8 +1327,8 @@ export default function AccessRequestForm() {
                 onChange={handleFileInputChange}
                 style={{ display: 'none' }}
               />
-              
-              <div 
+
+              <div
                 ref={pictureFrameRef}
                 style={{
                   width: '85px',
@@ -1376,8 +1372,8 @@ export default function AccessRequestForm() {
           </div>
 
           {/* Photo Upload Instruction */}
-          <div style={{ 
-            textAlign: 'center', 
+          <div style={{
+            textAlign: 'center',
             marginBottom: '8px',
             fontSize: '10px',
             color: '#666666',

@@ -7,65 +7,65 @@ import sharp from 'sharp';
 // Function to sanitize string to only allow specific ASCII characters
 function sanitizeString(str: string): string {
   if (!str) return '';
-  
+
   console.log('🔍 Sanitizing string:', {
     input: str,
     length: str.length
   });
-  
+
   const sanitized = str
     .split('')
     .map(char => {
       const code = char.charCodeAt(0);
       // Allow A-Z (65-90), a-z (97-122), underscore (95), hyphen (45)
       if ((code >= 65 && code <= 90) || // A-Z
-          (code >= 97 && code <= 122) || // a-z
-          code === 95 || // _
-          code === 45) { // -
+        (code >= 97 && code <= 122) || // a-z
+        code === 95 || // _
+        code === 45) { // -
         return char;
       }
       return ''; // Remove any other characters
     })
     .join('');
-    
+
   console.log('✨ Sanitized result:', {
     output: sanitized,
     length: sanitized.length
   });
-  
+
   return sanitized;
 }
 
 // Function to extract last 4 digits from phone number
 function getLastFourDigits(phone: string): string {
   if (!phone) return '0000';
-  
+
   console.log('📱 Processing phone number:', {
     input: phone,
     length: phone.length
   });
-  
+
   // Remove all non-digit characters
   const digits = phone.replace(/\D/g, '');
   console.log('📱 Extracted digits:', {
     digits,
     length: digits.length
   });
-  
+
   // Get the last 4 digits, or pad with zeros if less than 4 digits
   const last4 = digits.slice(-4).padStart(4, '0');
   console.log('📱 Final last 4 digits:', {
     last4,
     length: last4.length
   });
-  
+
   return last4;
 }
 
 // Function to determine if file is from mobile camera
 function isMobileCameraFile(file: File): boolean {
   if (!file || !file.name) return true; // Default to true for unnamed files
-  
+
   const mobileCameraNames = [
     'image.jpg',
     'image.jpeg',
@@ -77,18 +77,18 @@ function isMobileCameraFile(file: File): boolean {
     'IMG_',
     'IMG-'
   ];
-  
-  const isMobile = mobileCameraNames.some(name => 
-    !file.name || 
-    file.name === name || 
+
+  const isMobile = mobileCameraNames.some(name =>
+    !file.name ||
+    file.name === name ||
     file.name.startsWith(name)
   );
-  
+
   console.log('📸 Mobile camera check:', {
     fileName: file.name,
     isMobile
   });
-  
+
   return isMobile;
 }
 
@@ -164,7 +164,7 @@ async function processImageWithSharp(buffer: Uint8Array, fileType: string): Prom
 
   } catch (error) {
     console.error('❌ Sharp processing failed:', error);
-    
+
     // Fallback: return original buffer as JPEG
     console.log('🔄 Falling back to original image format');
     return {
@@ -174,45 +174,19 @@ async function processImageWithSharp(buffer: Uint8Array, fileType: string): Prom
   }
 }
 
-// Function to ensure image consistency across environments
-async function ensureImageConsistency(filename: string, buffer: Uint8Array): Promise<boolean> {
-  try {
-    console.log('🔄 Ensuring image consistency for:', filename);
-    
-    // Check if we're in production environment
-    const isProduction = process.env.NODE_ENV === 'production' || 
-                        process.env.VERCEL_ENV === 'production' ||
-                        process.env.NEXT_PUBLIC_IS_PRODUCTION === 'true';
-    
-    if (isProduction) {
-      console.log('🏭 Production environment detected - ensuring image availability');
-      
-      // In production, we need to ensure the image is accessible
-      // This could involve uploading to a CDN, cloud storage, or ensuring local availability
-      
-      // For now, we'll implement a simple check to ensure the file exists
-      const localPath = join(process.cwd(), 'public', 'images', filename);
-      if (!existsSync(localPath)) {
-        console.warn('⚠️ Image file not found in production:', localPath);
-        return false;
-      }
-      
-      console.log('✅ Image consistency check passed');
-      return true;
-    } else {
-      console.log('🛠️ Development environment - skipping production consistency checks');
-      return true;
-    }
-  } catch (error) {
-    console.error('❌ Image consistency check failed:', error);
-    return false;
+// Helper to get image directory
+function getImagesDir(): string {
+  // Use environment variable if set, otherwise default to project public/images
+  if (process.env.UPLOAD_DIR) {
+    return process.env.UPLOAD_DIR;
   }
+  return join(process.cwd(), 'public', 'images');
 }
 
 export async function POST(req: Request) {
   try {
     console.log('📸 Upload API called');
-    
+
     // Trust that authentication is handled at the application level
     // Since other API calls work and user can access the form, they are authenticated
     console.log('✅ Processing upload request');
@@ -257,13 +231,13 @@ export async function POST(req: Request) {
     const sanitizedLastname = sanitizeString(lastname);
     const sanitizedFirstname = sanitizeString(firstname);
     const last4Digits = getLastFourDigits(phone);
-    
+
     // Use the processed format for the extension
     const extension = outputFormat;
-    
+
     // Create filename: lastname + firstname + last4digits + extension
     const filename = `${sanitizedLastname}${sanitizedFirstname}${last4Digits}.${extension}`;
-    
+
     console.log('📝 Generated filename:', {
       originalLastname: lastname,
       originalFirstname: firstname,
@@ -275,10 +249,10 @@ export async function POST(req: Request) {
       filename,
       fullPath: `public/images/${filename}`
     });
-    
+
     // Create images directory if it doesn't exist
-    const uploadDir = join(process.cwd(), 'public', 'images');
-    console.log('📁 Creating images directory...');
+    const uploadDir = getImagesDir();
+    console.log('📁 Creating images directory...', uploadDir);
     await mkdir(uploadDir, { recursive: true });
 
     const filepath = join(uploadDir, filename);
@@ -288,22 +262,15 @@ export async function POST(req: Request) {
     await writeFile(filepath, processedBuffer);
     console.log('✅ File saved successfully');
 
-    // Ensure image consistency across environments
-    const isConsistent = await ensureImageConsistency(filename, processedBuffer);
-    if (!isConsistent) {
-      console.warn('⚠️ Image consistency check failed - image may not be available in all environments');
-    }
-
     // Return the URL that can be used to access the file
     // Note: This URL is relative to the public directory
     const url = `images/${filename}`;
     console.log(`🔗 File URL: ${url}`);
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       url,
       filename,
-      consistency: isConsistent,
-      message: isConsistent ? 'Image uploaded successfully' : 'Image uploaded but may need deployment synchronization'
+      message: 'Image uploaded successfully'
     });
   } catch (error: any) {
     console.error('💥 Error in file upload:', {
@@ -311,11 +278,11 @@ export async function POST(req: Request) {
       stack: error.stack,
       code: error.code
     });
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Internal Server Error',
-        details: error.message 
+        details: error.message
       },
       { status: 500 }
     );

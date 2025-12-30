@@ -6,8 +6,17 @@
 echo "🚀 Deploying OUC Access Control System..."
 
 # Set the application directory
-APP_DIR="/home/jawilson/fullstack-app"
-IMAGES_DIR="$APP_DIR/public/images"
+# Use provided APP_DIR or default to current directory if not set
+APP_DIR="${APP_DIR:-$(pwd)}"
+# Checks if we are in the root of the project or need to adjust
+if [ ! -d "$APP_DIR/public" ]; then
+    echo "⚠️  Could not find public directory in $APP_DIR"
+    echo "   Assuming script is run from project root..."
+    APP_DIR="."
+fi
+
+# Allow overriding images directory via env var
+IMAGES_DIR="${UPLOAD_DIR:-$APP_DIR/public/images}"
 
 echo "📁 Setting up images directory..."
 
