@@ -174,6 +174,41 @@ async function processImageWithSharp(buffer: Uint8Array, fileType: string): Prom
   }
 }
 
+// Function to ensure image consistency across environments
+async function ensureImageConsistency(filename: string, buffer: Uint8Array): Promise<boolean> {
+  try {
+    console.log('🔄 Ensuring image consistency for:', filename);
+    
+    // Check if we're in production environment
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                        process.env.VERCEL_ENV === 'production' ||
+                        process.env.NEXT_PUBLIC_IS_PRODUCTION === 'true';
+    
+    if (isProduction) {
+      console.log('🏭 Production environment detected - ensuring image availability');
+      
+      // In production, we need to ensure the image is accessible
+      // This could involve uploading to a CDN, cloud storage, or ensuring local availability
+      
+      // For now, we'll implement a simple check to ensure the file exists
+      const localPath = join(process.cwd(), 'public', 'images', filename);
+      if (!existsSync(localPath)) {
+        console.warn('⚠️ Image file not found in production:', localPath);
+        return false;
+      }
+      
+      console.log('✅ Image consistency check passed');
+      return true;
+    } else {
+      console.log('🛠️ Development environment - skipping production consistency checks');
+      return true;
+    }
+  } catch (error) {
+    console.error('❌ Image consistency check failed:', error);
+    return false;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     console.log('📸 Upload API called');
@@ -230,11 +265,15 @@ export async function POST(req: Request) {
     const filename = `${sanitizedLastname}${sanitizedFirstname}${last4Digits}.${extension}`;
     
     console.log('📝 Generated filename:', {
+      originalLastname: lastname,
+      originalFirstname: firstname,
+      originalPhone: phone,
       sanitizedLastname,
       sanitizedFirstname,
       last4Digits,
       extension,
-      filename
+      filename,
+      fullPath: `public/images/${filename}`
     });
     
     // Create images directory if it doesn't exist
@@ -249,12 +288,23 @@ export async function POST(req: Request) {
     await writeFile(filepath, processedBuffer);
     console.log('✅ File saved successfully');
 
+    // Ensure image consistency across environments
+    const isConsistent = await ensureImageConsistency(filename, processedBuffer);
+    if (!isConsistent) {
+      console.warn('⚠️ Image consistency check failed - image may not be available in all environments');
+    }
+
     // Return the URL that can be used to access the file
     // Note: This URL is relative to the public directory
     const url = `images/${filename}`;
     console.log(`🔗 File URL: ${url}`);
     
-    return NextResponse.json({ url });
+    return NextResponse.json({ 
+      url,
+      filename,
+      consistency: isConsistent,
+      message: isConsistent ? 'Image uploaded successfully' : 'Image uploaded but may need deployment synchronization'
+    });
   } catch (error: any) {
     console.error('💥 Error in file upload:', {
       message: error.message,

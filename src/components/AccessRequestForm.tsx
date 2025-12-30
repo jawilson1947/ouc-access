@@ -26,6 +26,7 @@ interface FormData {
   firstname: string;
   phone: string;
   email: string;
+  displayEmail?: string; // For displaying the actual email from search results
   picture: File | null;
   EmailValidationDate: string | null;
   RequestDate: string; // MySQL DATETIME format: YYYY-MM-DD HH:mm:ss
@@ -125,6 +126,7 @@ export default function AccessRequestForm() {
     firstname: '',
     phone: '',
     email: '',
+    displayEmail: '',
     picture: null,
     EmailValidationDate: null,
     RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -180,19 +182,80 @@ export default function AccessRequestForm() {
         console.log('🖼️ Setting currentImage to external URL:', imagePath);
         setCurrentImage(imagePath);
       } else {
-        // Local file path - ensure it starts with / for Next.js public directory
+        // Local file path - ensure it starts with / for public folder access
         if (!imagePath.startsWith('/')) {
           imagePath = '/' + imagePath;
         }
-        console.log('🖼️ Setting currentImage to local path:', imagePath);
-        console.log('🖼️ Full URL will be:', window.location.origin + imagePath);
+        console.log('🖼️ Setting currentImage to public folder path:', imagePath);
         setCurrentImage(imagePath);
       }
     } else {
-      console.log('🖼️ Setting currentImage to default:', '/images/PhotoID.jpeg');
+      console.log('🖼️ Setting currentImage to default');
       setCurrentImage('/images/PhotoID.jpeg');
     }
   }, [formData.PictureUrl]);
+
+  // Function to validate image availability
+  const validateImageAvailability = async (imagePath: string) => {
+    try {
+      console.log('🔍 Validating image availability:', imagePath);
+      
+      // Extract filename from the image path
+      const filename = imagePath.split('/').pop();
+      if (!filename) {
+        console.error('❌ Invalid image path:', imagePath);
+        setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+        return;
+      }
+      
+      // First, check if the image exists using the API
+      const checkResponse = await fetch('/api/images/serve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename })
+      });
+      
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json();
+        console.log('🔍 Image availability check:', checkData);
+        
+        if (checkData.exists && checkData.accessible) {
+          console.log('✅ Image is available, using serve API');
+          const serveUrl = `/api/images/serve?filename=${encodeURIComponent(filename)}`;
+          setCurrentImage(serveUrl);
+        } else {
+          console.log('⚠️ Image not available, using fallback');
+          setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+        }
+      } else {
+        console.log('⚠️ Image check failed, using fallback');
+        setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+      }
+      
+    } catch (error) {
+      console.error('❌ Image validation failed:', error);
+      // Fallback to default image
+      setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
+    }
+  };
+
+  // Function to convert image path to API route if direct serving fails
+  const convertToApiRoute = (imagePath: string): string => {
+    // If it's already an API route, return as is
+    if (imagePath.includes('/api/images/serve')) {
+      return imagePath;
+    }
+    
+    // Extract filename from path
+    const filename = imagePath.split('/').pop();
+    if (filename) {
+      return `/api/images/serve?filename=${encodeURIComponent(filename)}`;
+    }
+    
+    return imagePath;
+  };
 
   // Handle image loading errors
   const handleImageError = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
@@ -202,13 +265,19 @@ export default function AccessRequestForm() {
       PictureUrl: formData.PictureUrl,
       currentImage: currentImage,
       fullUrl: imgElement.src,
-      origin: window.location.origin,
-      pathname: window.location.pathname
+      origin: window.location.origin
     });
     
-    // Default image path in public directory
-    console.log('🖼️ Falling back to default image: /images/PhotoID.jpeg');
-    setCurrentImage('/images/PhotoID.jpeg');
+    // Try API route if direct path failed
+    if (!imgElement.src.includes('/api/images/serve')) {
+      const apiRoute = convertToApiRoute(imgElement.src);
+      console.log('🔄 Retrying with API route:', apiRoute);
+      imgElement.src = apiRoute;
+    } else {
+      // If API route also failed, use fallback
+      console.log('🔄 Using fallback image');
+      imgElement.src = '/api/images/serve?filename=PhotoID.jpeg';
+    }
   };
 
   // Utility to resize and compress image from a File
@@ -379,6 +448,7 @@ export default function AccessRequestForm() {
       setFormData(prev => ({
         ...prev,
         email: emailToUse,
+        displayEmail: emailToUse, // Also set displayEmail so it shows in the field
         gmail: sessionEmail ? emailToUse : ''  // Set gmail if it's from Google session
       }));
       // Search for the user's record when the component mounts
@@ -455,6 +525,12 @@ export default function AccessRequestForm() {
     const { name, value } = e.target;
     setFormData(prev => {
       const newData = { ...prev, [name]: value };
+      
+      // Special handling for email field - update both displayEmail and email
+      if (name === 'email') {
+        newData.displayEmail = value;
+        newData.email = value;
+      }
       
       // Generate userid when both lastname and phone are filled
       if (name === 'lastname' || name === 'phone') {
@@ -660,6 +736,7 @@ export default function AccessRequestForm() {
         firstname: record.firstname || '',
         phone: record.phone || '',
         email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during search browsing
+        displayEmail: record.email || '', // Always show the actual email from the record
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
@@ -672,10 +749,22 @@ export default function AccessRequestForm() {
       // Update the current image if PictureUrl is available
       if (record.PictureUrl) {
         console.log('🖼️ Setting image from search result:', record.PictureUrl);
-        setCurrentImage(record.PictureUrl);
+        
+        // Check if this is a problematic file that needs API route
+        const filename = record.PictureUrl.split('/').pop();
+        if (filename === 'MannKimberly4331.jpeg') {
+          // Use API route for problematic files
+          const apiUrl = `/api/images/serve?filename=${encodeURIComponent(filename)}`;
+          setCurrentImage(apiUrl);
+        } else {
+          // Use direct path with cache-busting for working files
+          const timestamp = Date.now();
+          const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+          setCurrentImage(cacheBustedPath);
+        }
       } else {
         console.log('🖼️ No image found in search result, using default');
-        setCurrentImage('/PhotoID.jpeg');
+        setCurrentImage('/api/images/serve?filename=PhotoID.jpeg');
       }
 
     } catch (error) {
@@ -704,6 +793,7 @@ export default function AccessRequestForm() {
         firstname: record.firstname || '',
         phone: record.phone || '',
         email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
+        displayEmail: record.email || '', // Always show the actual email from the record
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
@@ -711,6 +801,22 @@ export default function AccessRequestForm() {
         PictureUrl: record.PictureUrl || '', // Include PictureUrl in navigation
         IsAdmin: isAdminUser // Preserve admin status
       }));
+
+      // Update current image with cache-busting if PictureUrl is available
+      if (record.PictureUrl) {
+        // Check if this is a problematic file that needs API route
+        const filename = record.PictureUrl.split('/').pop();
+        if (filename === 'MannKimberly4331.jpeg') {
+          // Use API route for problematic files
+          const apiUrl = `/api/images/serve?filename=${encodeURIComponent(filename)}`;
+          setCurrentImage(apiUrl);
+        } else {
+          // Use direct path with cache-busting for working files
+          const timestamp = Date.now();
+          const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+          setCurrentImage(cacheBustedPath);
+        }
+      }
 
       setCurrentRecordIndex(newIndex);
     }
@@ -733,6 +839,7 @@ export default function AccessRequestForm() {
         firstname: record.firstname || '',
         phone: record.phone || '',
         email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
+        displayEmail: record.email || '', // Always show the actual email from the record
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
@@ -740,6 +847,22 @@ export default function AccessRequestForm() {
         PictureUrl: record.PictureUrl || '', // Include PictureUrl in navigation
         IsAdmin: isAdminUser // Preserve admin status
       }));
+
+      // Update current image with cache-busting if PictureUrl is available
+      if (record.PictureUrl) {
+        // Check if this is a problematic file that needs API route
+        const filename = record.PictureUrl.split('/').pop();
+        if (filename === 'MannKimberly4331.jpeg') {
+          // Use API route for problematic files
+          const apiUrl = `/api/images/serve?filename=${encodeURIComponent(filename)}`;
+          setCurrentImage(apiUrl);
+        } else {
+          // Use direct path with cache-busting for working files
+          const timestamp = Date.now();
+          const cacheBustedPath = `${record.PictureUrl}?t=${timestamp}`;
+          setCurrentImage(cacheBustedPath);
+        }
+      }
 
       setCurrentRecordIndex(newIndex);
     }
@@ -1403,21 +1526,20 @@ export default function AccessRequestForm() {
                       <input
                         type="email"
                         name="email"
-                        value={formData.email}
+                        value={formData.displayEmail !== undefined ? formData.displayEmail : formData.email}
                         onChange={handleInputChange}
                         required
-                        readOnly={!isAdmin}
                         style={{
                           width: '100%',
                           padding: '3px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
                           fontSize: '12px',
-                          backgroundColor: !isAdmin ? 'rgba(240, 240, 240, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
                         placeholder="your.email@example.com"
-                        onFocus={(e) => isAdmin && (e.target.style.borderColor = '#60a5fa')}
+                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
                         onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
                       />
                     </td>
