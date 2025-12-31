@@ -8,10 +8,19 @@ export interface ChurchMember {
   EmailValidationDate?: Date | string | null;
   RequestDate: Date | string;
   DeviceID?: string | null;
-  userid?: string | null;
+
+  department?: string | null;
 }
 
-export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpID'> {}
+export interface CreateChurchMemberInput extends Omit<ChurchMember, 'EmpID'> { }
 export interface UpdateChurchMemberInput extends Partial<ChurchMember> {
   EmpID: number;
 }
+
+export interface Organization {
+  ID: number;
+  department: string;
+}
+
+export type CreateOrganizationInput = Omit<Organization, 'ID'>;
+export type UpdateOrganizationInput = Organization;

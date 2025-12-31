@@ -40,6 +40,8 @@ next-env.d.ts
 # uploads
 /public/uploads/*
 !public/uploads/.gitkeep
+/public/images/*
+!public/images/.gitkeep
 
 # IDE
 .vscode/

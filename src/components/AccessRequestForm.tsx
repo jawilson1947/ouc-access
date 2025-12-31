@@ -6,6 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import type { Session } from 'next-auth';
 import { PhotoFrame } from '@/components/PhotoFrame';
+import { Organization } from '@/types/database';
 
 interface ChurchMember {
   EmpID: number;
@@ -17,7 +18,7 @@ interface ChurchMember {
   EmailValidationDate: string | null;
   RequestDate: string;
   DeviceID: string;
-  userid: string;
+  department: string;
 }
 
 interface FormData {
@@ -31,7 +32,8 @@ interface FormData {
   EmailValidationDate: string | null;
   RequestDate: string; // MySQL DATETIME format: YYYY-MM-DD HH:mm:ss
   DeviceID: string;
-  userid: string;
+
+  department: string;
   PictureUrl?: string;
   gmail: string;
   IsActive: boolean;
@@ -49,7 +51,7 @@ interface RequestData {
   EmailValidationDate: string | null;
   RequestDate: string; // MySQL DATETIME format: YYYY-MM-DD HH:mm:ss
   DeviceID: string;
-  userid: string;
+  department: string;
   EmpID?: number;
 }
 
@@ -131,7 +133,7 @@ export default function AccessRequestForm() {
     EmailValidationDate: null,
     RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
     DeviceID: '',
-    userid: '',
+    department: '',
     gmail: '',
     IsActive: true,
     IsAdmin: false,
@@ -144,6 +146,23 @@ export default function AccessRequestForm() {
     console.log('🔄 AccessRequestForm mounted');
     console.log('📧 Current localStorage nonGmailEmail:', localStorage.getItem('nonGmailEmail'));
     console.log('📧 Current formData.email:', formData.email);
+  }, []);
+
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const response = await fetch('/api/organizations');
+        if (response.ok) {
+          const data = await response.json();
+          setOrganizations(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch organizations', error);
+      }
+    };
+    fetchOrgs();
   }, []);
 
   const [isSearchEnabled, setIsSearchEnabled] = useState(false);
@@ -504,7 +523,7 @@ export default function AccessRequestForm() {
           EmailValidationDate: record.EmailValidationDate,
           RequestDate: record.RequestDate,
           DeviceID: record.DeviceID,
-          userid: record.userid,
+          department: record.department,
           PictureUrl: normalizedPictureUrl
         }));
 
@@ -532,26 +551,6 @@ export default function AccessRequestForm() {
         newData.email = value;
       }
 
-      // Generate userid when both lastname and phone are filled
-      if (name === 'lastname' || name === 'phone') {
-        const lastname = name === 'lastname' ? value : prev.lastname;
-        const phone = name === 'phone' ? value : prev.phone;
-
-        if (lastname && phone && phone.length >= 4) {
-          // Get last 4 digits of phone number, removing any non-digit characters
-          const last4Digits = phone.replace(/\D/g, '').slice(-4);
-          // Sanitize lastname and convert to uppercase
-          const sanitizedLastname = sanitizeString(lastname).toUpperCase();
-          // Generate userid: SANITIZED_UPPERCASE(lastname) + last4Digits
-          newData.userid = sanitizedLastname + last4Digits;
-          console.log('🆔 Generated userid:', newData.userid, {
-            originalLastname: lastname,
-            sanitizedLastname,
-            last4Digits
-          });
-        }
-      }
-
       return newData;
     });
   };
@@ -575,20 +574,6 @@ export default function AccessRequestForm() {
 
     setFormData(prev => {
       const newData = { ...prev, phone: formatted };
-
-      // Generate userid when both lastname and phone are filled
-      if (prev.lastname && digitsOnly.length >= 4) {
-        const last4Digits = digitsOnly.slice(-4);
-        // Sanitize lastname and convert to uppercase
-        const sanitizedLastname = sanitizeString(prev.lastname).toUpperCase();
-        newData.userid = sanitizedLastname + last4Digits;
-        console.log('🆔 Generated userid:', newData.userid, {
-          originalLastname: prev.lastname,
-          sanitizedLastname,
-          last4Digits
-        });
-      }
-
       return newData;
     });
   };
@@ -645,7 +630,7 @@ export default function AccessRequestForm() {
           EmailValidationDate: null,
           RequestDate: new Date().toISOString().slice(0, 19).replace('T', ' '),
           DeviceID: '',
-          userid: ''
+          department: ''
         }));
         setCanNavigate(false);
       }
@@ -662,9 +647,15 @@ export default function AccessRequestForm() {
     try {
       setIsLoading(true);
       setError('');
-
+      // No userid to replace here, it uses ...member spread. 
+      // Wait, I need to make sure 'member' has department. 
+      // It comes from SearchResponse. ChurchMember interface.
+      // I updated ChurchMember interface in types/database.ts but not in this file?
+      // I see line 10 interface ChurchMember in this file. I need to update that too!
+      // Let me update the local interface definition first.
       // Check which field has content for searching
       const lastnameValue = formData.lastname.trim();
+      const firstnameValue = formData.firstname.trim();
       const emailValue = formData.email.trim();
 
       // Check if this is a wildcard search (only in lastname field)
@@ -676,21 +667,30 @@ export default function AccessRequestForm() {
         return;
       }
 
-      let query = '';
+      let queryParts: string[] = [];
 
       if (isWildcardSearch) {
         // Wildcard search - return all records
-        query = '*';
+        queryParts.push('*');
       } else if (emailValue && emailValue !== formData.gmail) {
         // Search by email (but not the admin's own email)
-        query = `email:${encodeURIComponent(emailValue)}`;
-      } else if (lastnameValue) {
-        // Search by lastname
-        query = `lastname:${encodeURIComponent(lastnameValue)}`;
+        queryParts.push(`email:${encodeURIComponent(emailValue)}`);
       } else {
-        setError('Please enter a last name or email to search for');
+        // Search by lastname and/or firstname
+        if (lastnameValue) {
+          queryParts.push(`lastname:${encodeURIComponent(lastnameValue)}`);
+        }
+        if (firstnameValue) {
+          queryParts.push(`firstname:${encodeURIComponent(firstnameValue)}`);
+        }
+      }
+
+      if (queryParts.length === 0) {
+        setError('Please enter a last name, first name, or email to search for');
         return;
       }
+
+      const query = queryParts.join(',');
 
       console.log('🔍 Executing search with query:', query);
 
@@ -740,7 +740,7 @@ export default function AccessRequestForm() {
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
-        userid: record.userid || '',
+        department: record.department || '',
         PictureUrl: record.PictureUrl || '', // Include PictureUrl from search results
         gmail: isAdminUser ? currentUserEmail : '', // Store admin email in gmail field
         IsAdmin: isAdminUser // Preserve admin status
@@ -794,6 +794,7 @@ export default function AccessRequestForm() {
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
         userid: record.userid || '',
+        department: record.department || '',
         PictureUrl: record.PictureUrl || '', // Include PictureUrl in navigation
         IsAdmin: isAdminUser // Preserve admin status
       }));
@@ -840,6 +841,7 @@ export default function AccessRequestForm() {
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
         userid: record.userid || '',
+        department: record.department || '',
         PictureUrl: record.PictureUrl || '', // Include PictureUrl in navigation
         IsAdmin: isAdminUser // Preserve admin status
       }));
@@ -886,11 +888,7 @@ export default function AccessRequestForm() {
 
       setIsLoading(true);
 
-      // Generate userid if not already set
-      if (!formData.userid) {
-        const generatedUserId = generateUserId(formData.lastname, formData.phone);
-        setFormData(prev => ({ ...prev, userid: generatedUserId }));
-      }
+
 
       // Upload picture if exists
       let PictureUrl = formData.PictureUrl;
@@ -963,7 +961,7 @@ export default function AccessRequestForm() {
         EmailValidationDate: formData.EmailValidationDate,
         RequestDate: formattedRequestDate,
         DeviceID: formData.DeviceID,
-        userid: formData.userid
+        department: formData.department
       };
 
       // Only include EmpID for updates
@@ -1152,7 +1150,7 @@ export default function AccessRequestForm() {
       EmailValidationDate: null,
       RequestDate: mysqlDatetime,
       DeviceID: '',
-      userid: '',
+      department: '',
       gmail: '',
       IsActive: true,
       IsAdmin: isAdmin,
@@ -1551,15 +1549,17 @@ export default function AccessRequestForm() {
                       fontSize: '9px'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
-                        <span>🆔</span>User ID:
+                        <span>🏢</span>Department:
                       </div>
                     </td>
                     <td style={{ padding: '3px 8px' }}>
-                      <input
-                        type="text"
-                        name="userid"
-                        value={formData.userid}
-                        onChange={handleInputChange}
+                      <select
+                        name="department"
+                        value={formData.department}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData(prev => ({ ...prev, department: val }));
+                        }}
                         style={{
                           width: '100%',
                           padding: '3px',
@@ -1567,12 +1567,23 @@ export default function AccessRequestForm() {
                           borderRadius: '3px',
                           fontSize: '12px',
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                          appearance: 'none', // Remove default arrow
+                          backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 4px center',
+                          backgroundSize: '12px',
                           transition: 'border-color 0.3s ease'
                         }}
-                        placeholder="Create a unique user ID"
                         onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
                         onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
-                      />
+                      >
+                        <option value="">Select a department...</option>
+                        {organizations.map((org) => (
+                          <option key={org.ID} value={org.department}>
+                            {org.department}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                   </tr>
 
@@ -1610,7 +1621,7 @@ export default function AccessRequestForm() {
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
-                        placeholder="Enter your mobile device ID"
+                        placeholder="Enter your Pure Mobile App Device ID"
                         onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
                         onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
                       />

@@ -11,7 +11,7 @@ interface AccessRequestData {
   EmailValidationDate?: string | null;
   RequestDate: string;
   DeviceID?: string;
-  userid: string;
+  department?: string;
   id?: number; // For PUT requests
 }
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       const [result] = await connection.execute(
         `INSERT INTO ChurchMembers (
           lastname, firstname, phone, email, PictureUrl,
-          EmailValidationDate, RequestDate, DeviceID, userid
+          EmailValidationDate, RequestDate, DeviceID, department
         ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.lastname,
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
           data.EmailValidationDate,
           data.RequestDate,
           data.DeviceID,
-          data.userid
+          data.department || null
         ]
       );
 
@@ -66,7 +66,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const email = searchParams.get('email');
   const phone = searchParams.get('phone');
-  const userId = searchParams.get('userId');
   const lastname = searchParams.get('lastname');
   const firstname = searchParams.get('firstname');
 
@@ -84,10 +83,7 @@ export async function GET(request: Request) {
         query += ' AND Phone = ?';
         params.push(phone);
       }
-      if (userId) {
-        query += ' AND userid = ?';
-        params.push(userId);
-      }
+
       if (lastname && firstname) {
         query += ' AND Lastname LIKE ? AND Firstname LIKE ?';
         params.push(`%${lastname}%`, `%${firstname}%`);
@@ -123,7 +119,7 @@ export async function PUT(request: Request) {
           EmailValidationDate = ?,
           RequestDate = ?,
           DeviceID = ?,
-          userid = ?
+          department = ?
         WHERE id = ?`,
         [
           data.lastname,
@@ -134,7 +130,7 @@ export async function PUT(request: Request) {
           data.EmailValidationDate,
           data.RequestDate,
           data.DeviceID,
-          data.userid,
+          data.department || null,
           data.id
         ]
       );
