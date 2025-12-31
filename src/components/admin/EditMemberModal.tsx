@@ -22,7 +22,6 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
     EmailValidationDate: member.EmailValidationDate,
     RequestDate: member.RequestDate,
     DeviceID: member.DeviceID || undefined,
-    userid: member.userid || undefined,
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -137,9 +136,8 @@ export function EditMemberModal({ member, onClose, onSave }: EditMemberModalProp
             <button
               type="submit"
               disabled={loading}
-              className={`bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 ${loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
             >
               {loading ? 'Saving...' : 'Save Changes'}
             </button>

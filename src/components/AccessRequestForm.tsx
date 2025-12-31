@@ -86,16 +86,6 @@ function formatMySQLDateTime(date: Date | string | null): string | null {
   }
 }
 
-function generateUserId(lastname: string, phone: string): string {
-  // Get uppercase lastname
-  const lastnamePart = lastname.toUpperCase();
-
-  // Get last 4 digits of phone number
-  const phoneDigits = phone.replace(/\D/g, '').slice(-4);
-
-  // Combine parts
-  return `${lastnamePart}${phoneDigits}`;
-}
 
 // Helper function to sanitize string to allowed ASCII characters
 const sanitizeString = (str: string): string => {
@@ -793,7 +783,6 @@ export default function AccessRequestForm() {
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
-        userid: record.userid || '',
         department: record.department || '',
         PictureUrl: record.PictureUrl || '', // Include PictureUrl in navigation
         IsAdmin: isAdminUser // Preserve admin status
@@ -840,7 +829,6 @@ export default function AccessRequestForm() {
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
         DeviceID: record.DeviceID || '',
-        userid: record.userid || '',
         department: record.department || '',
         PictureUrl: record.PictureUrl || '', // Include PictureUrl in navigation
         IsAdmin: isAdminUser // Preserve admin status
@@ -1022,51 +1010,56 @@ export default function AccessRequestForm() {
       const action = formData.EmpID ? 'update' : 'create';
 
       // Send email notification with enhanced feedback
-      let emailStatus = 'unknown';
-      try {
-        console.log('📧 Attempting to send email notification...');
-        const emailResponse = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            lastname: formData.lastname,
-            firstname: formData.firstname,
-            email: formData.email,
-            phone: formData.phone,
-            PictureUrl: PictureUrl,
-            DeviceID: formData.DeviceID,
-            action: action
-          }),
-        });
+      let emailStatus = 'skipped';
 
-        const emailResult = await emailResponse.json() as {
-          success?: boolean;
-          message?: string;
-          details?: string;
-          error?: string;
-          configIssues?: any;
-        };
+      if (window.confirm("Do you want to send an email notification?")) {
+        try {
+          console.log('📧 Attempting to send email notification...');
+          const emailResponse = await fetch('/api/send-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              lastname: formData.lastname,
+              firstname: formData.firstname,
+              email: formData.email,
+              phone: formData.phone,
+              PictureUrl: PictureUrl,
+              DeviceID: formData.DeviceID,
+              action: action
+            }),
+          });
 
-        if (emailResponse.ok) {
-          if (emailResult.success) {
-            emailStatus = 'sent';
-            console.log('✅ Email notification sent successfully:', emailResult.message);
+          const emailResult = await emailResponse.json() as {
+            success?: boolean;
+            message?: string;
+            details?: string;
+            error?: string;
+            configIssues?: any;
+          };
+
+          if (emailResponse.ok) {
+            if (emailResult.success) {
+              emailStatus = 'sent';
+              console.log('✅ Email notification sent successfully:', emailResult.message);
+            } else {
+              emailStatus = 'failed';
+              console.warn('⚠️ Email notification failed:', emailResult.message || emailResult.details);
+            }
           } else {
             emailStatus = 'failed';
-            console.warn('⚠️ Email notification failed:', emailResult.message || emailResult.details);
+            console.warn('⚠️ Email notification failed:', emailResult.error || emailResult.message);
+            if (emailResult.configIssues) {
+              console.warn('📧 Email configuration issues:', emailResult.configIssues);
+            }
           }
-        } else {
-          emailStatus = 'failed';
-          console.warn('⚠️ Email notification failed:', emailResult.error || emailResult.message);
-          if (emailResult.configIssues) {
-            console.warn('📧 Email configuration issues:', emailResult.configIssues);
-          }
+        } catch (emailError: any) {
+          emailStatus = 'error';
+          console.error('❌ Email notification error:', emailError.message || emailError);
         }
-      } catch (emailError: any) {
-        emailStatus = 'error';
-        console.error('❌ Email notification error:', emailError.message || emailError);
+      } else {
+        console.log('📧 Email notification skipped by user');
       }
 
       // Enhanced success message based on email status
@@ -1077,6 +1070,8 @@ export default function AccessRequestForm() {
         successMessage += '\n\n⚠️ Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.';
       } else if (emailStatus === 'error') {
         successMessage += '\n\n❌ Record saved but email service unavailable.\nPlease contact OUC IT to confirm your request.';
+      } else if (emailStatus === 'skipped') {
+        successMessage += '\n\nEmail notification not sent.';
       }
 
       alert(successMessage);
