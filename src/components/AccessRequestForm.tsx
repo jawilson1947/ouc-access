@@ -107,6 +107,44 @@ const isUserAdmin = (userEmail: string | null | undefined): boolean => {
   return Boolean(userEmail && adminEmails.includes(userEmail));
 };
 
+// Helper function to resize image and convert to Base64
+const resizeImage = (file: File, maxWidth = 800, maxHeight = 800): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = document.createElement('img');
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height *= maxWidth / width));
+            width = maxWidth;
+          } else {
+            width = Math.round((width *= maxHeight / height));
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Convert to Base64 (JPEG with 0.7 quality)
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 export default function AccessRequestForm() {
   console.log('🎨 AccessRequestForm component mounting');
 
@@ -340,6 +378,56 @@ export default function AccessRequestForm() {
     });
   };
 
+  // NEW: Utility to resize image and return Base64 string for DB storage
+  const resizeImageToBase64 = (file: File, maxWidth: number, maxHeight: number, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = document.createElement('img');
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          img.src = event.target.result as string;
+        } else {
+          reject(new Error('Failed to read file'));
+        }
+      };
+
+      reader.onerror = (error) => reject(error);
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height *= maxWidth / width));
+            width = maxWidth;
+          } else {
+            width = Math.round((width *= maxHeight / height));
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas rendering context not available'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to Base64 (JPEG)
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(base64);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageDrop = async (e: React.DragEvent) => {
     e.preventDefault();
 
@@ -352,18 +440,22 @@ export default function AccessRequestForm() {
         return;
       }
 
-      // Resize image if needed
+      // Resize image and convert to Base64
       try {
-        const resizedFile = await resizeImageFile(file, 1024, 1024, 0.7);
-        setFormData(prev => ({ ...prev, picture: resizedFile }));
+        console.log('🖼️ Processing dropped image:', file.name);
+        // Use 800x800 max size for DB storage efficiency
+        const base64String = await resizeImageToBase64(file, 800, 800, 0.7);
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            setCurrentImage(event.target.result as string);
-          }
-        };
-        reader.readAsDataURL(resizedFile);
+        console.log('✅ Image processed to Base64, length:', base64String.length);
+
+        setFormData(prev => ({
+          ...prev,
+          picture: file,
+          PictureUrl: base64String
+        }));
+
+        setCurrentImage(base64String);
+
       } catch (err) {
         console.error('Image resize error:', err);
         alert('Error processing image. Please try a smaller file.');
@@ -386,16 +478,20 @@ export default function AccessRequestForm() {
       }
 
       try {
-        const resizedFile = await resizeImageFile(file, 1024, 1024, 0.7);
-        setFormData(prev => ({ ...prev, picture: resizedFile }));
+        console.log('🖼️ Processing selected image:', file.name);
+        // Use 800x800 max size for DB storage efficiency
+        const base64String = await resizeImageToBase64(file, 800, 800, 0.7);
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            setCurrentImage(event.target.result as string);
-          }
-        };
-        reader.readAsDataURL(resizedFile);
+        console.log('✅ Image processed to Base64, length:', base64String.length);
+
+        setFormData(prev => ({
+          ...prev,
+          picture: file,
+          PictureUrl: base64String
+        }));
+
+        setCurrentImage(base64String);
+
       } catch (err) {
         console.error('Image resize error:', err);
         alert('Error processing image. Please try a smaller file.');
