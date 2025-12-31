@@ -225,7 +225,11 @@ export default function AccessRequestForm() {
       let imagePath = formData.PictureUrl.trim();
 
       // Handle different path formats
-      if (imagePath.startsWith('http')) {
+      if (imagePath.startsWith('data:')) {
+        // Base64 string - use as is
+        console.log('🖼️ Setting currentImage to Base64 data');
+        setCurrentImage(imagePath);
+      } else if (imagePath.startsWith('http')) {
         // External URL - use as is
         console.log('🖼️ Setting currentImage to external URL:', imagePath);
         setCurrentImage(imagePath);
@@ -975,55 +979,11 @@ export default function AccessRequestForm() {
 
 
 
-      // Upload picture if exists
-      let PictureUrl = formData.PictureUrl;
-      if (formData.picture) {
-        console.log('📸 Photo upload detected - preparing for potential webpack refresh...');
 
-        const uploadFormData = new FormData();
-        uploadFormData.append('file', formData.picture);
-        uploadFormData.append('lastname', formData.lastname);
-        uploadFormData.append('firstname', formData.firstname);
-        uploadFormData.append('phone', formData.phone);
+      // Use existing PictureUrl (which might be Base64 from new upload or existing URL)
+      const PictureUrl = formData.PictureUrl;
+      console.log('📸 Using PictureUrl for save:', PictureUrl ? (PictureUrl.startsWith('data:') ? 'Base64 Data' : PictureUrl) : 'None');
 
-        console.log('📸 Uploading photo...', {
-          fileName: formData.picture.name,
-          fileSize: formData.picture.size,
-          fileType: formData.picture.type
-        });
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: uploadFormData
-        });
-
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json().catch(() => ({ error: 'Unknown upload error' })) as { error?: string };
-          console.error('📸 Upload failed:', {
-            status: uploadResponse.status,
-            statusText: uploadResponse.statusText,
-            error: errorData
-          });
-          throw new Error(`Failed to upload picture: ${errorData.error || uploadResponse.statusText}`);
-        }
-
-        const { url } = await uploadResponse.json() as { url: string };
-        console.log('📸 Photo uploaded successfully:', url);
-        PictureUrl = url;
-
-        // Add a small delay after photo upload to allow webpack to stabilize
-        console.log('📸 Photo uploaded, waiting briefly for system stability...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Trigger a cache refresh to prevent webpack module resolution issues
-        try {
-          console.log('🔄 Triggering cache refresh after photo upload...');
-          // Make a small request to ensure modules are properly loaded
-          await fetch('/api/auth/session', { method: 'GET' });
-        } catch (refreshError) {
-          console.warn('⚠️ Cache refresh failed, but continuing...', refreshError);
-        }
-      }
 
       // Format the date in MySQL format if it's in ISO format
       let formattedRequestDate = formData.RequestDate;
