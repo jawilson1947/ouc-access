@@ -131,6 +131,7 @@ export default function AccessRequestForm() {
     IsApproved: false
   });
 
+
   // Add mount logging
   useEffect(() => {
     console.log('🔄 AccessRequestForm mounted');
@@ -725,7 +726,7 @@ export default function AccessRequestForm() {
         lastname: record.lastname || '',
         firstname: record.firstname || '',
         phone: record.phone || '',
-        email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during search browsing
+        email: record.email || '', // Always use the actual email from the record
         displayEmail: record.email || '', // Always show the actual email from the record
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -778,7 +779,7 @@ export default function AccessRequestForm() {
         lastname: record.lastname || '', // Always use the actual lastname
         firstname: record.firstname || '',
         phone: record.phone || '',
-        email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
+        email: record.email || '', // Always use the actual email from the record
         displayEmail: record.email || '', // Always show the actual email from the record
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -824,7 +825,7 @@ export default function AccessRequestForm() {
         lastname: record.lastname || '', // Always use the actual lastname
         firstname: record.firstname || '',
         phone: record.phone || '',
-        email: isAdminUser ? currentUserEmail : (record.email || ''), // Preserve admin email during navigation
+        email: record.email || '', // Always use the actual email from the record
         displayEmail: record.email || '', // Always show the actual email from the record
         EmailValidationDate: record.EmailValidationDate || null,
         RequestDate: record.RequestDate || new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -1006,13 +1007,14 @@ export default function AccessRequestForm() {
         }));
       }
 
-      // Determine if this is an update or new record
       const action = formData.EmpID ? 'update' : 'create';
 
-      // Send email notification with enhanced feedback
-      let emailStatus = 'skipped';
+      // Indicate success first as requested
+      alert('Record saved successfully!');
 
-      if (window.confirm("Do you want to send an email notification?")) {
+      // Send email notification with enhanced feedback
+      // Using standard confirm dialog: OK = Yes, Cancel = No/Not Yet
+      if (window.confirm("Do you want to Send email notification?")) {
         try {
           console.log('📧 Attempting to send email notification...');
           const emailResponse = await fetch('/api/send-email', {
@@ -1041,40 +1043,27 @@ export default function AccessRequestForm() {
 
           if (emailResponse.ok) {
             if (emailResult.success) {
-              emailStatus = 'sent';
               console.log('✅ Email notification sent successfully:', emailResult.message);
+              alert('Email notification sent to OUC IT.');
             } else {
-              emailStatus = 'failed';
               console.warn('⚠️ Email notification failed:', emailResult.message || emailResult.details);
+              alert('Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.');
             }
           } else {
-            emailStatus = 'failed';
             console.warn('⚠️ Email notification failed:', emailResult.error || emailResult.message);
             if (emailResult.configIssues) {
               console.warn('📧 Email configuration issues:', emailResult.configIssues);
             }
+            alert('Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.');
           }
         } catch (emailError: any) {
-          emailStatus = 'error';
           console.error('❌ Email notification error:', emailError.message || emailError);
+          alert('Record saved but email service unavailable.\nPlease contact OUC IT to confirm your request.');
         }
       } else {
         console.log('📧 Email notification skipped by user');
+        alert('Email notification not Sent');
       }
-
-      // Enhanced success message based on email status
-      let successMessage = 'Record saved successfully!';
-      if (emailStatus === 'sent') {
-        successMessage += '\n\n✅ Email notification sent to OUC IT.';
-      } else if (emailStatus === 'failed') {
-        successMessage += '\n\n⚠️ Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.';
-      } else if (emailStatus === 'error') {
-        successMessage += '\n\n❌ Record saved but email service unavailable.\nPlease contact OUC IT to confirm your request.';
-      } else if (emailStatus === 'skipped') {
-        successMessage += '\n\nEmail notification not sent.';
-      }
-
-      alert(successMessage);
 
     } catch (error) {
       console.error('💥 Save error:', error);
@@ -1083,6 +1072,8 @@ export default function AccessRequestForm() {
       setIsLoading(false);
     }
   };
+
+
 
   const handleDelete = async () => {
     if (!formData.EmpID || !isAdmin) {
@@ -1209,7 +1200,7 @@ export default function AccessRequestForm() {
         </div>
       )}
 
-      <div className="w-full max-w-md mx-auto px-4" style={{ padding: '1rem' }}>
+      <div className="w-full max-w-md mx-auto px-4" style={{ padding: '1.2rem' }}>
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
@@ -1221,7 +1212,7 @@ export default function AccessRequestForm() {
           {/* Header with OUC Branding */}
           <div style={{ textAlign: 'center', marginBottom: '12px' }}>
             <h1 style={{
-              fontSize: '20px',
+              fontSize: '24px',
               fontWeight: 'bold',
               background: 'linear-gradient(135deg, #60a5fa, #1a1a5c)',
               backgroundClip: 'text',
@@ -1232,7 +1223,7 @@ export default function AccessRequestForm() {
               🏛️ OUC Access Control
             </h1>
             <p style={{
-              fontSize: '8px',
+              fontSize: '10px',
               color: '#000033',
               fontWeight: '600'
             }}>
@@ -1252,7 +1243,7 @@ export default function AccessRequestForm() {
                 border: '1px solid rgba(59, 130, 246, 0.3)',
                 borderRadius: '3px',
                 color: '#1d4ed8',
-                fontSize: '8px',
+                fontSize: '10px',
                 fontWeight: '600'
               }}>
                 <div style={{
@@ -1277,7 +1268,7 @@ export default function AccessRequestForm() {
                 border: '1px solid rgba(34, 197, 94, 0.3)',
                 borderRadius: '3px',
                 color: '#15803d',
-                fontSize: '8px',
+                fontSize: '10px',
                 fontWeight: '600'
               }}>
                 ✅ Welcome back! Your existing data has been loaded.
@@ -1294,7 +1285,7 @@ export default function AccessRequestForm() {
                 border: '1px solid rgba(168, 85, 247, 0.3)',
                 borderRadius: '3px',
                 color: '#7c3aed',
-                fontSize: '8px',
+                fontSize: '10px',
                 fontWeight: '600'
               }}>
                 🆕 Welcome! Please fill out your information below.
@@ -1324,8 +1315,8 @@ export default function AccessRequestForm() {
               <div
                 ref={pictureFrameRef}
                 style={{
-                  width: '85px',
-                  height: '85px',
+                  width: '123px',
+                  height: '123px',
                   border: '2px solid #60a5fa',
                   borderRadius: '12px',
                   display: 'flex',
@@ -1368,7 +1359,7 @@ export default function AccessRequestForm() {
           <div style={{
             textAlign: 'center',
             marginBottom: '8px',
-            fontSize: '10px',
+            fontSize: '12px',
             color: '#666666',
             fontStyle: 'italic'
           }}>
@@ -1382,30 +1373,32 @@ export default function AccessRequestForm() {
             border: '1px solid rgba(0, 0, 51, 0.3)',
             borderRadius: '3px',
             padding: '12px',
-            marginBottom: '12px'
+            marginBottom: '12px',
+            marginLeft: '10px',
+            marginRight: '10px'
           }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{
                 width: '100%',
-                maxWidth: '321px',
+                maxWidth: '385px',
                 margin: '0 auto',
                 borderCollapse: 'collapse'
               }}>
                 <tbody>
                   <tr style={{ borderBottom: '1px solid rgba(0, 0, 51, 0.1)' }}>
                     <td style={{
-                      width: '72px',
+                      width: '88px',
                       textAlign: 'right',
                       fontWeight: '600',
                       color: '#000033',
-                      padding: '3px 8px',
-                      fontSize: '9px'
+                      padding: '4px 10px',
+                      fontSize: '11px'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
                         <span>👤</span>First Name:
                       </div>
                     </td>
-                    <td style={{ padding: '3px 8px' }}>
+                    <td style={{ padding: '4px 10px' }}>
                       <input
                         type="text"
                         name="firstname"
@@ -1414,10 +1407,10 @@ export default function AccessRequestForm() {
                         required
                         style={{
                           width: '100%',
-                          padding: '3px',
+                          padding: '5px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
@@ -1449,10 +1442,10 @@ export default function AccessRequestForm() {
                         required
                         style={{
                           width: '100%',
-                          padding: '3px',
+                          padding: '5px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
@@ -1485,10 +1478,10 @@ export default function AccessRequestForm() {
                         required
                         style={{
                           width: '100%',
-                          padding: '3px',
+                          padding: '5px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
@@ -1520,10 +1513,10 @@ export default function AccessRequestForm() {
                         required
                         style={{
                           width: '100%',
-                          padding: '3px',
+                          padding: '5px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
@@ -1557,16 +1550,16 @@ export default function AccessRequestForm() {
                         }}
                         style={{
                           width: '100%',
-                          padding: '3px',
+                          padding: '5px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           appearance: 'none', // Remove default arrow
                           backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
                           backgroundRepeat: 'no-repeat',
                           backgroundPosition: 'right 4px center',
-                          backgroundSize: '12px',
+                          backgroundSize: '14px',
                           transition: 'border-color 0.3s ease'
                         }}
                         onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
@@ -1609,10 +1602,10 @@ export default function AccessRequestForm() {
                         }}
                         style={{
                           width: '100%',
-                          padding: '3px',
+                          padding: '5px',
                           border: '1px solid rgba(0, 0, 51, 0.3)',
                           borderRadius: '3px',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           backgroundColor: 'rgba(255, 255, 255, 0.9)',
                           transition: 'border-color 0.3s ease'
                         }}
@@ -1657,7 +1650,7 @@ export default function AccessRequestForm() {
                             color: '#1d4ed8',
                             textDecoration: 'none',
                             fontWeight: '600',
-                            fontSize: '10px',
+                            fontSize: '12px',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '3px',
@@ -1669,7 +1662,7 @@ export default function AccessRequestForm() {
                           <span>↗️</span>
                         </a>
                         <p style={{
-                          fontSize: '8px',
+                          fontSize: '10px',
                           marginTop: '3px',
                           color: 'rgba(29, 78, 216, 0.75)',
                           margin: '3px 0 0 0'
@@ -1755,7 +1748,9 @@ export default function AccessRequestForm() {
             backdropFilter: 'blur(10px)',
             border: '1px solid rgba(0, 0, 51, 0.3)',
             borderRadius: '3px',
-            padding: '8px'
+            padding: '8px',
+            marginLeft: '10px',
+            marginRight: '10px'
           }}>
             <div style={{
               display: 'flex',
@@ -1766,12 +1761,12 @@ export default function AccessRequestForm() {
               <button
                 onClick={handleNew}
                 style={{
-                  padding: '5px 9px',
+                  padding: '6px 11px',
                   backgroundColor: '#6b7280',
                   color: 'white',
                   border: 'none',
                   borderRadius: '5px',
-                  fontSize: '12px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
@@ -1793,12 +1788,12 @@ export default function AccessRequestForm() {
               <button
                 onClick={handleSave}
                 style={{
-                  padding: '5px 9px',
+                  padding: '6px 11px',
                   backgroundColor: '#000033',
                   color: 'white',
                   border: 'none',
                   borderRadius: '5px',
-                  fontSize: '12px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
@@ -1822,12 +1817,12 @@ export default function AccessRequestForm() {
                   onClick={handleDelete}
                   title="Delete this record"
                   style={{
-                    padding: '8px 18px',
+                    padding: '10px 22px',
                     backgroundColor: '#dc2626',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
-                    fontSize: '12px',
+                    fontSize: '14px',
                     fontWeight: '600',
                     cursor: 'pointer',
                     transition: 'all 0.3s ease',
@@ -2009,6 +2004,7 @@ export default function AccessRequestForm() {
           {success}
         </div>
       )}
+
     </div>
   );
 }
