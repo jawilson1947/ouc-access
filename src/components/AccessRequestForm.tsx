@@ -208,6 +208,9 @@ export default function AccessRequestForm() {
   const [isLoadingUserData, setIsLoadingUserData] = useState(true);
   const [userDataStatus, setUserDataStatus] = useState<'loading' | 'found' | 'new' | 'error'>('loading');
 
+  // Add state for department help text
+  const [showDeptHelp, setShowDeptHelp] = useState(false);
+
   // Simplify image state to just use PictureUrl
   const [currentImage, setCurrentImage] = useState<string>('images/PhotoID.jpeg');
   const pictureFrameRef = useRef<HTMLDivElement>(null);
@@ -1597,37 +1600,66 @@ export default function AccessRequestForm() {
                       </div>
                     </td>
                     <td style={{ padding: '3px 8px' }}>
-                      <select
-                        name="department"
-                        value={formData.department}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setFormData(prev => ({ ...prev, department: val }));
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '5px',
-                          border: '1px solid rgba(0, 0, 51, 0.3)',
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <select
+                          name="department"
+                          value={formData.department}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFormData(prev => ({ ...prev, department: val }));
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '5px',
+                            border: '1px solid rgba(0, 0, 51, 0.3)',
+                            borderRadius: '3px',
+                            fontSize: '15px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            appearance: 'none', // Remove default arrow
+                            backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                            backgroundRepeat: 'no-repeat',
+                            backgroundPosition: 'right 4px center',
+                            backgroundSize: '14px',
+                            transition: 'border-color 0.3s ease'
+                          }}
+                          onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                          onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
+                        >
+                          <option value="">Select a department...</option>
+                          {organizations.map((org) => (
+                            <option key={org.ID} value={org.department}>
+                              {org.department}
+                            </option>
+                          ))}
+                        </select>
+                        <div
+                          onClick={() => setShowDeptHelp(!showDeptHelp)}
+                          style={{
+                            cursor: 'pointer',
+                            color: '#1d4ed8',
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            userSelect: 'none'
+                          }}
+                          title="Click for help"
+                        >
+                          ?
+                        </div>
+                      </div>
+                      {showDeptHelp && (
+                        <div style={{
+                          fontSize: '10px',
+                          color: '#000033',
+                          marginTop: '4px',
+                          fontStyle: 'italic',
+                          backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                          padding: '4px',
                           borderRadius: '3px',
-                          fontSize: '15px',
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          appearance: 'none', // Remove default arrow
-                          backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
-                          backgroundRepeat: 'no-repeat',
-                          backgroundPosition: 'right 4px center',
-                          backgroundSize: '14px',
-                          transition: 'border-color 0.3s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
-                        onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
-                      >
-                        <option value="">Select a department...</option>
-                        {organizations.map((org) => (
-                          <option key={org.ID} value={org.department}>
-                            {org.department}
-                          </option>
-                        ))}
-                      </select>
+                          border: '1px solid rgba(59, 130, 246, 0.2)'
+                        }}>
+                          Select the closet matching department to which you are assigned. Select "Other" if not applicable
+                        </div>
+                      )}
                     </td>
                   </tr>
 
@@ -1669,6 +1701,14 @@ export default function AccessRequestForm() {
                         onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
                         onBlur={(e) => e.target.style.borderColor = 'rgba(0, 0, 51, 0.3)'}
                       />
+                      <div style={{
+                        fontSize: '10px',
+                        color: 'rgba(0, 0, 51, 0.7)',
+                        marginTop: '3px',
+                        fontStyle: 'italic'
+                      }}>
+                        Enter the deviceID from your Pure Access Mobile App. Click below for instructions
+                      </div>
                     </td>
                   </tr>
 
