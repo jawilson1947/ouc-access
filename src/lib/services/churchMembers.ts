@@ -89,7 +89,6 @@ export async function createChurchMember(data: CreateChurchMemberInput): Promise
         formatDateForMySQL(data.EmailValidationDate || null),
         formatDateForMySQL(data.RequestDate || null),
         data.DeviceID || null,
-        data.DeviceID || null,
         data.department || null
       ]
     );
