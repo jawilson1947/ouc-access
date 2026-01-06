@@ -30,37 +30,69 @@ async function sendEmailWithSendGrid(emailData: EmailData) {
     .filter(email => email.length > 0);
   const attachments = [];
   console.log('📬 Recipients to notify:', recipientList);
-  if (PictureUrl && PictureUrl.startsWith('images/')) {
-    try {
-      const imagesDir = path.join(process.cwd(), 'public', 'images');
-      const filename = path.basename(PictureUrl);
-      const filePath = path.join(imagesDir, filename);
+  if (PictureUrl) {
+    // Handle Base64 image
+    if (PictureUrl.startsWith('data:')) {
+      try {
+        console.log('📎 Processing Base64 image attachment');
+        // Format: data:image/jpeg;base64,.....
+        const matches = PictureUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
 
-      console.log('📎 Attempting to attach photo:', {
-        filename,
-        filePath,
-        exists: await fs.access(filePath).then(() => true).catch(() => false)
-      });
+        if (matches && matches.length === 3) {
+          const type = matches[1];
+          const content = matches[2];
+          const extension = type.split('/')[1] || 'jpeg';
+          const filename = `photo.${extension}`;
 
-      const fileContent = await fs.readFile(filePath);
+          attachments.push({
+            content: content,
+            filename: filename,
+            type: type,
+            disposition: 'attachment'
+          });
+          console.log('✅ Base64 photo prepared for attachment:', filename);
+        } else {
+          console.warn('⚠️ Invalid Base64 image format');
+        }
+      } catch (error: any) {
+        console.error('❌ Failed to process Base64 image:', error.message);
+      }
+    }
+    // Handle legacy local file path (backward compatibility)
+    else if (PictureUrl.startsWith('images/')) {
+      try {
+        const imagesDir = path.join(process.cwd(), 'public', 'images');
+        const filename = path.basename(PictureUrl);
+        const filePath = path.join(imagesDir, filename);
 
-      attachments.push({
-        content: fileContent.toString('base64'),
-        filename: filename,
-        type: filename.endsWith('.png') ? 'image/png' : 'image/jpeg',
-        disposition: 'attachment'
-      });
+        console.log('📎 Attempting to attach local photo:', {
+          filename,
+          filePath,
+          exists: await fs.access(filePath).then(() => true).catch(() => false)
+        });
 
-      console.log('✅ Photo attached to email:', filename);
-    } catch (error: any) {
-      console.error('❌ Failed to attach photo:', {
-        error: error.message,
-        code: error.code,
-        path: error.path
-      });
+        const fileContent = await fs.readFile(filePath);
+
+        attachments.push({
+          content: fileContent.toString('base64'),
+          filename: filename,
+          type: filename.endsWith('.png') ? 'image/png' : 'image/jpeg',
+          disposition: 'attachment'
+        });
+
+        console.log('✅ Local photo attached to email:', filename);
+      } catch (error: any) {
+        console.error('❌ Failed to attach local photo:', {
+          error: error.message,
+          code: error.code,
+          path: error.path
+        });
+      }
+    } else {
+      console.log('ℹ️ PictureUrl format not recognized for attachment:', PictureUrl.substring(0, 50) + '...');
     }
   } else {
-    console.log('ℹ️ No photo to attach or invalid PictureUrl:', PictureUrl);
+    console.log('ℹ️ No photo to attach (PictureUrl is empty)');
   }
 
   const emailPayload = {
@@ -142,8 +174,8 @@ export async function POST(req: Request) {
 
     if (!SENDGRID_API_KEY) {
       console.error('❌ SendGrid API key not configured');
-      return NextResponse.json({ 
-        success: false, 
+      return NextResponse.json({
+        success: false,
         message: 'Email service not configured - notification skipped',
         details: 'SENDGRID_API_KEY or SEND_GRID_API_KEY not found in environment variables'
       }, { status: 200 });
@@ -151,9 +183,9 @@ export async function POST(req: Request) {
 
     try {
       await sendEmailWithSendGrid(emailData);
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Email notification sent successfully via SendGrid' 
+      return NextResponse.json({
+        success: true,
+        message: 'Email notification sent successfully via SendGrid'
       });
     } catch (error: any) {
       console.error('❌ SendGrid error:', {
@@ -161,7 +193,7 @@ export async function POST(req: Request) {
         response: error.response?.body,
         code: error.code
       });
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: false,
         message: 'Email notification failed but record was saved successfully',
         details: error.response?.body?.errors?.[0]?.message || error.message || 'Unknown SendGrid error'
@@ -172,9 +204,9 @@ export async function POST(req: Request) {
       message: error.message,
       stack: error.stack
     });
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Failed to process email request',
-      details: error.message 
+      details: error.message
     }, { status: 500 });
   }
 }
