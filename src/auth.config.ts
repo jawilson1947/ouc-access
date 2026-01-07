@@ -9,8 +9,8 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   throw new Error('Missing Google OAuth credentials')
 }
 
-if (!ADMIN_EMAIL) {
-  throw new Error('Missing ADMIN_EMAIL environment variable')
+if (!ADMIN_EMAIL && !process.env.ADMIN_EMAILS && !process.env.NEXT_PUBLIC_ADMIN_EMAILS) {
+  console.warn('⚠️ No ADMIN_EMAIL or ADMIN_EMAILS environment variable set. Admin access will be disabled.')
 }
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -42,7 +42,7 @@ export const authOptions: NextAuthOptions = {
           id: "1",
           email,
           name: email.split('@')[0],
-          isAdmin: email === ADMIN_EMAIL
+          isAdmin: isAdmin(email)
         }
       }
     })
@@ -55,7 +55,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.email = user.email
-        token.isAdmin = user.email === ADMIN_EMAIL
+        token.isAdmin = isAdmin(user.email)
       }
       return token
     },
@@ -72,4 +72,26 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60 // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET
+}
+
+// Helper to check admin status
+function isAdmin(email?: string | null) {
+  if (!email) return false
+
+  // Check ADMIN_EMAIL (single)
+  if (process.env.ADMIN_EMAIL && email === process.env.ADMIN_EMAIL) return true
+
+  // Check ADMIN_EMAILS (comma-separated list)
+  if (process.env.ADMIN_EMAILS) {
+    const admins = process.env.ADMIN_EMAILS.split(',').map(e => e.trim())
+    return admins.includes(email)
+  }
+
+  // Check NEXT_PUBLIC_ADMIN_EMAILS (frontend var, fallback)
+  if (process.env.NEXT_PUBLIC_ADMIN_EMAILS) {
+    const admins = process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(e => e.trim())
+    return admins.includes(email)
+  }
+
+  return false
 } 
