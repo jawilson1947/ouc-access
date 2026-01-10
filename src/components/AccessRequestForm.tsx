@@ -6,6 +6,8 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import type { Session } from 'next-auth';
 import { PhotoFrame } from '@/components/PhotoFrame';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { AlertModal } from '@/components/AlertModal';
 import { Organization } from '@/types/database';
 
 interface ChurchMember {
@@ -210,6 +212,10 @@ export default function AccessRequestForm() {
 
   // Add state for department help text
   const [showDeptHelp, setShowDeptHelp] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [pendingEmailData, setPendingEmailData] = useState<any>(null);
+  const [showAlertModal, setShowAlertModal] = useState(false);
+  const [alertContent, setAlertContent] = useState({ title: '', message: '' });
 
   // Simplify image state to just use PictureUrl
   const [currentImage, setCurrentImage] = useState<string>('images/PhotoID.jpeg');
@@ -1068,61 +1074,17 @@ export default function AccessRequestForm() {
 
       const action = formData.EmpID ? 'update' : 'create';
 
-      // Indicate success first as requested
-      alert('Record saved successfully!');
-
-      // Send email notification with enhanced feedback
-      // Using standard confirm dialog: OK = Yes, Cancel = No/Not Yet
-      if (window.confirm("Do you want to Send email notification?")) {
-        try {
-          console.log('📧 Attempting to send email notification...');
-          const emailResponse = await fetch('/api/send-email', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              lastname: formData.lastname,
-              firstname: formData.firstname,
-              email: formData.email,
-              phone: formData.phone,
-              PictureUrl: PictureUrl,
-              DeviceID: formData.DeviceID,
-              action: action
-            }),
-          });
-
-          const emailResult = await emailResponse.json() as {
-            success?: boolean;
-            message?: string;
-            details?: string;
-            error?: string;
-            configIssues?: any;
-          };
-
-          if (emailResponse.ok) {
-            if (emailResult.success) {
-              console.log('✅ Email notification sent successfully:', emailResult.message);
-              alert('Email notification sent to OUC IT.');
-            } else {
-              console.warn('⚠️ Email notification failed:', emailResult.message || emailResult.details);
-              alert('Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.');
-            }
-          } else {
-            console.warn('⚠️ Email notification failed:', emailResult.error || emailResult.message);
-            if (emailResult.configIssues) {
-              console.warn('📧 Email configuration issues:', emailResult.configIssues);
-            }
-            alert('Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.');
-          }
-        } catch (emailError: any) {
-          console.error('❌ Email notification error:', emailError.message || emailError);
-          alert('Record saved but email service unavailable.\nPlease contact OUC IT to confirm your request.');
-        }
-      } else {
-        console.log('📧 Email notification skipped by user');
-        alert('Email notification not Sent');
-      }
+      // Store email data and show custom modal instead of browser confirm
+      setPendingEmailData({
+        lastname: formData.lastname,
+        firstname: formData.firstname,
+        email: formData.email,
+        phone: formData.phone,
+        PictureUrl: PictureUrl,
+        DeviceID: formData.DeviceID,
+        action: action
+      });
+      setShowEmailModal(true);
 
     } catch (error) {
       console.error('💥 Save error:', error);
@@ -1130,6 +1092,66 @@ export default function AccessRequestForm() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle email modal confirmation
+  const handleEmailConfirm = async () => {
+    setShowEmailModal(false);
+
+    if (pendingEmailData) {
+      try {
+        console.log('📧 Attempting to send email notification...');
+        const emailResponse = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(pendingEmailData),
+        });
+
+        const emailResult = await emailResponse.json() as {
+          success?: boolean;
+          message?: string;
+          details?: string;
+          error?: string;
+          configIssues?: any;
+        };
+
+        if (emailResponse.ok) {
+          if (emailResult.success) {
+            console.log('✅ Email notification sent successfully:', emailResult.message);
+            setAlertContent({ title: '✅ Success', message: 'Email notification sent to OUC IT.' });
+            setShowAlertModal(true);
+          } else {
+            console.warn('⚠️ Email notification failed:', emailResult.message || emailResult.details);
+            setAlertContent({ title: '⚠️ Warning', message: 'Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.' });
+            setShowAlertModal(true);
+          }
+        } else {
+          console.warn('⚠️ Email notification failed:', emailResult.error || emailResult.message);
+          if (emailResult.configIssues) {
+            console.warn('📧 Email configuration issues:', emailResult.configIssues);
+          }
+          setAlertContent({ title: '⚠️ Warning', message: 'Record saved but email notification failed.\nPlease contact OUC IT directly if urgent.' });
+          setShowAlertModal(true);
+        }
+      } catch (emailError: any) {
+        console.error('❌ Email notification error:', emailError.message || emailError);
+        setAlertContent({ title: '❌ Error', message: 'Record saved but email service unavailable.\nPlease contact OUC IT to confirm your request.' });
+        setShowAlertModal(true);
+      }
+    }
+
+    setPendingEmailData(null);
+  };
+
+  // Handle email modal cancellation
+  const handleEmailCancel = () => {
+    setShowEmailModal(false);
+    console.log('📧 Email notification skipped by user');
+    setAlertContent({ title: 'ℹ️ Info', message: 'Email notification not sent.' });
+    setShowAlertModal(true);
+    setPendingEmailData(null);
   };
 
 
@@ -2100,6 +2122,23 @@ export default function AccessRequestForm() {
           {success}
         </div>
       )}
+
+      {/* Custom Email Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showEmailModal}
+        title="✅ Record Saved Successfully!"
+        message="Do you want to send an email notification to OUC IT?"
+        onConfirm={handleEmailConfirm}
+        onCancel={handleEmailCancel}
+      />
+
+      {/* Custom Alert Modal */}
+      <AlertModal
+        isOpen={showAlertModal}
+        title={alertContent.title}
+        message={alertContent.message}
+        onClose={() => setShowAlertModal(false)}
+      />
 
     </div>
   );
