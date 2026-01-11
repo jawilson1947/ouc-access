@@ -6,9 +6,11 @@ interface ConfirmModalProps {
     message: string;
     onConfirm: () => void;
     onCancel: () => void;
+    confirmLabel?: string;
+    cancelLabel?: string;
 }
 
-export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: ConfirmModalProps) {
+export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmLabel = 'Yes', cancelLabel = 'No' }: ConfirmModalProps) {
     if (!isOpen) return null;
 
     return (
@@ -66,7 +68,7 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: Co
                             cursor: 'pointer'
                         }}
                     >
-                        Cancel
+                        {cancelLabel}
                     </button>
                     <button
                         onClick={onConfirm}
@@ -81,7 +83,7 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: Co
                             cursor: 'pointer'
                         }}
                     >
-                        Send Email
+                        {confirmLabel}
                     </button>
                 </div>
             </div>
