@@ -1402,7 +1402,7 @@ export default function AccessRequestForm() {
           </div>
 
           {/* Photo Section */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <div style={{ position: 'relative' }}>
               <input
                 ref={fileInputRef}
@@ -1452,6 +1452,18 @@ export default function AccessRequestForm() {
                   }}
                 />
               </div>
+            </div>
+
+            {/* Photo Help Text */}
+            <div style={{
+              fontSize: '12px',
+              color: '#000033',
+              fontWeight: '600',
+              fontStyle: 'italic',
+              maxWidth: '100px',
+              lineHeight: '1.3'
+            }}>
+              📸 Head and Shoulders Only
             </div>
           </div>
 
