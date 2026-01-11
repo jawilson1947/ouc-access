@@ -57,5 +57,6 @@ sendmail.js
 *.env
 !.env.example 
 #image files
-/public/images
+/public/images/*
+!public/images/PhotoID.jpeg
 
