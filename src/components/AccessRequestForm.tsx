@@ -220,7 +220,7 @@ export default function AccessRequestForm() {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   // Simplify image state to just use PictureUrl
-  const [currentImage, setCurrentImage] = useState<string>('images/PhotoID.jpeg');
+  const [currentImage, setCurrentImage] = useState<string>('/images/PhotoID.jpeg');
   const pictureFrameRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
