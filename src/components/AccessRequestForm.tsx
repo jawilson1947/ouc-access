@@ -216,6 +216,8 @@ export default function AccessRequestForm() {
   const [pendingEmailData, setPendingEmailData] = useState<any>(null);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertContent, setAlertContent] = useState({ title: '', message: '' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   // Simplify image state to just use PictureUrl
   const [currentImage, setCurrentImage] = useState<string>('images/PhotoID.jpeg');
@@ -1080,6 +1082,7 @@ export default function AccessRequestForm() {
         firstname: formData.firstname,
         email: formData.email,
         phone: formData.phone,
+        department: formData.department,
         PictureUrl: PictureUrl,
         DeviceID: formData.DeviceID,
         action: action
@@ -1161,15 +1164,22 @@ export default function AccessRequestForm() {
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this record?')) {
-      return;
-    }
+    // Show custom confirmation modal instead of native confirm
+    setPendingDeleteId(formData.EmpID);
+    setShowDeleteConfirm(true);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    setShowDeleteConfirm(false);
+
+    if (!pendingDeleteId) return;
 
     try {
       setIsLoading(true);
-      console.log('🗑️ Deleting record with EmpID:', formData.EmpID);
+      console.log('🗑️ Deleting record with EmpID:', pendingDeleteId);
 
-      const response = await fetch(`/api/church-members/delete?EmpID=${formData.EmpID}`, {
+      const response = await fetch(`/api/church-members/delete?EmpID=${pendingDeleteId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -1185,17 +1195,26 @@ export default function AccessRequestForm() {
       const data = await response.json() as { success?: boolean; error?: string };
       if (data.success) {
         console.log('✅ Record deleted successfully');
-        alert('Record deleted successfully');
+        setAlertContent({ title: '✅ Success', message: 'Record deleted successfully' });
+        setShowAlertModal(true);
         handleNew(); // Reset form after successful delete
       } else {
         throw new Error(data.error || 'Delete failed');
       }
     } catch (error) {
       console.error('❌ Delete error:', error);
-      alert(`Failed to delete record: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setAlertContent({ title: '❌ Error', message: `Failed to delete record: ${error instanceof Error ? error.message : 'Unknown error'}` });
+      setShowAlertModal(true);
     } finally {
       setIsLoading(false);
+      setPendingDeleteId(null);
     }
+  };
+
+  // Handle delete cancellation
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false);
+    setPendingDeleteId(null);
   };
 
   const handleNew = () => {
@@ -2130,6 +2149,15 @@ export default function AccessRequestForm() {
         message="Do you want to send an email notification to OUC IT?"
         onConfirm={handleEmailConfirm}
         onCancel={handleEmailCancel}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="⚠️ Confirm Delete"
+        message="Are you sure you want to delete this record? This action cannot be undone."
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
       />
 
       {/* Custom Alert Modal */}

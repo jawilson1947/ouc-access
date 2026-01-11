@@ -12,6 +12,7 @@ interface EmailData {
   phone?: string;
   PictureUrl?: string;
   DeviceID?: string;
+  department?: string;
   action?: string;
 }
 
@@ -22,7 +23,7 @@ if (SENDGRID_API_KEY) {
 }
 
 async function sendEmailWithSendGrid(emailData: EmailData) {
-  const { lastname, firstname, email, phone, PictureUrl, DeviceID } = emailData;
+  const { lastname, firstname, email, phone, PictureUrl, DeviceID, department } = emailData;
 
   const recipientList = (process.env.NOTIFICATION_EMAILS || 'ouc-it@oucsda.org')
     .split(',')
@@ -117,7 +118,8 @@ async function sendEmailWithSendGrid(emailData: EmailData) {
               <tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 0; font-weight: bold; color: #000033;">👤 First Name:</td><td style="padding: 12px 0;">${firstname || 'Not provided'}</td></tr>
               <tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 0; font-weight: bold; color: #000033;">📧 Email:</td><td style="padding: 12px 0;">${email || 'Not provided'}</td></tr>
               <tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 0; font-weight: bold; color: #000033;">📞 Phone:</td><td style="padding: 12px 0;">${phone || 'Not provided'}</td></tr>
-              <tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 0; font-weight: bold; color: #000033;">📞 Device ID:</td><td style="padding: 12px 0;">${DeviceID || 'Not provided'}</td></tr>
+              <tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 0; font-weight: bold; color: #000033;">🏢 Department:</td><td style="padding: 12px 0;">${department || 'Not provided'}</td></tr>
+              <tr style="border-bottom: 1px solid #eee;"><td style="padding: 12px 0; font-weight: bold; color: #000033;">📱 Device ID:</td><td style="padding: 12px 0;">${DeviceID || 'Not provided'}</td></tr>
               <tr><td style="padding: 12px 0; font-weight: bold; color: #000033;">🕐 Timestamp:</td><td style="padding: 12px 0;">${new Date().toLocaleString()}</td></tr>
             </table>
             ${PictureUrl ? `
